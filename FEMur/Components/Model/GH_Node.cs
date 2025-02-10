@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using Grasshopper;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
+using FEMur.Core.Model;
+using Grasshopper.Kernel.Types;
 
 namespace FEMur.Components.Model
 {
-    public class Mesh : GH_Component
+    public class GH_Node : GH_Component
     {
         /// <summary>
         /// Each implementation of GH_Component must provide a public 
@@ -15,9 +17,9 @@ namespace FEMur.Components.Model
         /// Subcategory the panel. If you use non-existing tab or panel names, 
         /// new tabs/panels will automatically be created.
         /// </summary>
-        public Mesh()
-          : base("FEMurComponent", "Nickname",
-            "Description",
+        public GH_Node()
+          : base("Node", "Node",
+            "Node Component. if the Z input is absent, it is considered a planar element.",
             "FEMur", "Model")
         {
         }
@@ -27,6 +29,7 @@ namespace FEMur.Components.Model
         /// </summary>
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
+            pManager.AddPointParameter("Point", "Point", "Point object", GH_ParamAccess.list);
         }
 
         /// <summary>
@@ -34,6 +37,7 @@ namespace FEMur.Components.Model
         /// </summary>
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
+            pManager.AddGenericParameter("Node", "Node", "Node object", GH_ParamAccess.list);
         }
 
         /// <summary>
@@ -43,6 +47,27 @@ namespace FEMur.Components.Model
         /// to store data in output parameters.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
+            List<GH_Point> points = new List<GH_Point>();
+            if (!DA.GetDataList(0, points)) return;
+
+            List<Node> nodes = new List<Node>();
+            for (int i = 0; i < points.Count; i++)
+            {
+                Point3d pt = points[i].Value;
+                if (pt.IsValid)
+                {
+                    if (pt.Z == 0)
+                    {
+                        nodes.Add(new Node(i, pt.X, pt.Y, pt.Z));
+                    }
+                    else
+                    {
+                        nodes.Add(new Node(i, pt.X, pt.Y, pt.Z));
+                    }
+                }
+            }
+
+            DA.SetDataList(0, nodes);
         }
 
         /// <summary>
@@ -51,8 +76,7 @@ namespace FEMur.Components.Model
         /// You can add image files to your project resources and access them like this:
         /// return Resources.IconForThisComponent;
         /// </summary>
-        protected override System.Drawing.Bitmap Icon => null;
-
+        protected override System.Drawing.Bitmap Icon@=> global::FEMur.Resource.Node;
         /// <summary>
         /// Each component must have a unique Guid to identify it. 
         /// It is vital this Guid doesn't change otherwise old ghx files 

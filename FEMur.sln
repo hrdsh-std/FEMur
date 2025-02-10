@@ -1,9 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.12.35521.163 d17.12
+VisualStudioVersion = 17.12.35521.163
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEMur", "FEMur\FEMur.csproj", "{AFF9D074-4780-473D-95C9-DFCFD060F108}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEMur.Core", "FEMur.Core\FEMur.Core.csproj", "{288A4643-235B-47D3-9C07-41E90A262985}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEMur.Test", "FEMur.Test\FEMur.Test.csproj", "{0C063EDD-DE73-45DA-B751-A73C7DEB3FC5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +19,14 @@ Global
 		{AFF9D074-4780-473D-95C9-DFCFD060F108}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AFF9D074-4780-473D-95C9-DFCFD060F108}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AFF9D074-4780-473D-95C9-DFCFD060F108}.Release|Any CPU.Build.0 = Release|Any CPU
+		{288A4643-235B-47D3-9C07-41E90A262985}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{288A4643-235B-47D3-9C07-41E90A262985}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{288A4643-235B-47D3-9C07-41E90A262985}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{288A4643-235B-47D3-9C07-41E90A262985}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0C063EDD-DE73-45DA-B751-A73C7DEB3FC5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C063EDD-DE73-45DA-B751-A73C7DEB3FC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C063EDD-DE73-45DA-B751-A73C7DEB3FC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C063EDD-DE73-45DA-B751-A73C7DEB3FC5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
