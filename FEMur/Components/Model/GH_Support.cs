@@ -24,9 +24,12 @@ namespace FEMur.Core.Model
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Node", "N", "Node object", GH_ParamAccess.list);
-            pManager.AddBooleanParameter("Support X", "UX", "Support in X direction", GH_ParamAccess.item);
-            pManager.AddBooleanParameter("Support Y", "UY", "Support in Y direction", GH_ParamAccess.item);
-            pManager.AddBooleanParameter("Support Z", "UZ", "Support in Z direction", GH_ParamAccess.item);
+            pManager.AddBooleanParameter("Support X", "UX", "Support in X direction", GH_ParamAccess.item,true);
+            pManager.AddBooleanParameter("Support Y", "UY", "Support in Y direction", GH_ParamAccess.item, true);
+            pManager.AddBooleanParameter("Support Z", "UZ", "Support in Z direction", GH_ParamAccess.item, true);
+            pManager[1].Optional = true;
+            pManager[2].Optional = true;
+            pManager[3].Optional = true;
         }
 
         /// <summary>

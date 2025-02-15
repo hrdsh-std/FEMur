@@ -25,9 +25,12 @@ namespace FEMur.Components.Model
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Node", "N", "Node object", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Fx", "Fx", "Force in X direction", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Fy", "Fy", "Force in Y direction", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Fz", "Fz", "Force in Z direction", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Fx", "Fx", "Force in X direction", GH_ParamAccess.item,0.0);
+            pManager.AddNumberParameter("Fy", "Fy", "Force in Y direction", GH_ParamAccess.item, 0.0);
+            pManager.AddNumberParameter("Fz", "Fz", "Force in Z direction", GH_ParamAccess.item, 0.0);
+            pManager[1].Optional = true;
+            pManager[2].Optional = true;
+            pManager[3].Optional = true;
         }
 
         /// <summary>
