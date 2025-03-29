@@ -2,23 +2,26 @@
 using System.Collections.Generic;
 
 using Grasshopper.Kernel;
+using Grasshopper.Kernel.Types;
 using Rhino.Geometry;
-using MathNet.Numerics.LinearAlgebra;
-using System.Linq;
-using FEMur.Core.FEMur2D.Model;
 
-namespace FEMur.Components.Analyze
+using FEMur.Core.DKTplate;
+using FEMur.Core.Interface;
+using FEMur.Core.Common;
+
+namespace FEMur.Components.DKTplate
 {
-    public class AnalyzeQ4 : GH_Component
+    public class DKT_Node : GH_Component
     {
         /// <summary>
         /// Initializes a new instance of the MyComponent1 class.
         /// </summary>
-        public AnalyzeQ4()
-          : base("Analyze", "A",
-              "This component performs plane strain element analysis. Plane strain elements can only be analyzed in the XY plane.",
-              "FEMur", "Analyze")
+        public DKT_Node()
+          : base("Node", "N",
+              "Node Component(DKTplate)",
+              "FEMur", "DKTplate")
         {
+
         }
 
         /// <summary>
@@ -26,9 +29,7 @@ namespace FEMur.Components.Analyze
         /// </summary>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Model", "M", "Model object", GH_ParamAccess.item);
-            pManager.AddBooleanParameter("Run", "R", "Run analysis", GH_ParamAccess.item, false);
-            pManager[1].Optional = true;
+            pManager.AddPointParameter("Point", "Point", "Point object", GH_ParamAccess.list);
         }
 
         /// <summary>
@@ -36,7 +37,7 @@ namespace FEMur.Components.Analyze
         /// </summary>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Model", "M", "Model object", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Node", "Node", "Node object", GH_ParamAccess.list);
         }
 
         /// <summary>
@@ -45,23 +46,20 @@ namespace FEMur.Components.Analyze
         /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            FEMModel model = null;
-            bool run = false;
-            if (!DA.GetData(0, ref model)) return;
-            if (!DA.GetData(1, ref run)) return;
-            if (!run) return;
+            List<GH_Point> points = new List<GH_Point>();
+            if (!DA.GetDataList(0, points)) return;
 
-            foreach(Node node in model.nodes)
+            List<INode> nodes = new List<INode>();
+            for (int i = 0; i < points.Count; i++)
             {
-                if (node.z != 0)
+                Point3d pt = points[i].Value;
+                if (pt.IsValid)
                 {
-                    this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Plane strain element analysis can only be performed in the XY plane.");
-                    return;
+                    nodes.Add(new Node3D(i, pt.X, pt.Y, pt.Z));
                 }
             }
 
-            Core.FEMur2D.Analyze.AnalyzeQ4 solver = new Core.FEMur2D.Analyze.AnalyzeQ4(model);
-            DA.SetData(0, solver.model);
+            DA.SetDataList(0, nodes);
         }
 
         /// <summary>
@@ -82,7 +80,7 @@ namespace FEMur.Components.Analyze
         /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("C6511621-F8DB-440B-92EC-0A20D18E1095"); }
+            get { return new Guid("00672C05-614F-4B04-A01F-4A546BEE505D"); }
         }
     }
 }

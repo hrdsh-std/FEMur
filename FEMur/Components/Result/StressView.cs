@@ -3,11 +3,11 @@ using System.Collections.Generic;
 
 using Grasshopper.Kernel;
 using Rhino.Geometry;
-using FEMur.Core.Model;
 using MathNet.Numerics.LinearAlgebra;
 using System.Drawing;
 using System.Linq;
 using Rhino.Geometry.Collections;
+using FEMur.Core.FEMur2D.Model;
 
 namespace FEMur.Components.Result
 {

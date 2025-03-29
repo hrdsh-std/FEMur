@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FEMur.Core.Model
+namespace FEMur.Core.FEMur2D.Model
 {
 
 
@@ -14,7 +14,7 @@ namespace FEMur.Core.Model
         public double Fx { get; }
         public double Fy { get; }
         public double Fz { get; }
-        public Load(Node node, double Fx, double Fy, double Fz=0)
+        public Load(Node node, double Fx, double Fy, double Fz = 0)
         {
             this.node = node;
             this.Fx = Fx;

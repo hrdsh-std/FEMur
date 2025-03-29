@@ -1,23 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
-
 using Grasshopper.Kernel;
 using Rhino.Geometry;
-using MathNet.Numerics.LinearAlgebra;
-using System.Linq;
-using FEMur.Core.FEMur2D.Model;
 
-namespace FEMur.Components.Analyze
+using FEMur.Core.DKTplate;
+using FEMur.Core.Interface;
+using FEMur.Core.Common;
+
+namespace FEMur.Components.DKTplate
 {
-    public class AnalyzeQ4 : GH_Component
+    public class DKT_GravityLoad : GH_Component
     {
         /// <summary>
         /// Initializes a new instance of the MyComponent1 class.
         /// </summary>
-        public AnalyzeQ4()
-          : base("Analyze", "A",
-              "This component performs plane strain element analysis. Plane strain elements can only be analyzed in the XY plane.",
-              "FEMur", "Analyze")
+        public DKT_GravityLoad()
+          : base("GravityLoad", "GL",
+              "GravityLoad Component",
+              "FEMur", "DKTPlate")
         {
         }
 
@@ -26,9 +26,12 @@ namespace FEMur.Components.Analyze
         /// </summary>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Model", "M", "Model object", GH_ParamAccess.item);
-            pManager.AddBooleanParameter("Run", "R", "Run analysis", GH_ParamAccess.item, false);
+            pManager.AddNumberParameter("Gx", "Gx", "Gravity Coefficient in X direction", GH_ParamAccess.item, 0.0);
+            pManager.AddNumberParameter("Gy", "Gy", "Gravity Coefficient in Y direction", GH_ParamAccess.item, 0.0);
+            pManager.AddNumberParameter("Gz", "Gz", "Gravity Coefficient in Z direction", GH_ParamAccess.item, 0.0);
+            pManager[0].Optional = true;
             pManager[1].Optional = true;
+            pManager[2].Optional = true;
         }
 
         /// <summary>
@@ -36,7 +39,7 @@ namespace FEMur.Components.Analyze
         /// </summary>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Model", "M", "Model object", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Load", "Load", "Load object", GH_ParamAccess.item);
         }
 
         /// <summary>
@@ -45,23 +48,16 @@ namespace FEMur.Components.Analyze
         /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            FEMModel model = null;
-            bool run = false;
-            if (!DA.GetData(0, ref model)) return;
-            if (!DA.GetData(1, ref run)) return;
-            if (!run) return;
+            double gx = 0;
+            double gy = 0;
+            double gz = 0;
+            if (!DA.GetData(0, ref gx)) return;
+            if (!DA.GetData(1, ref gy)) return;
+            if (!DA.GetData(2, ref gz)) return;
+            
+            ILoad load = new GravityLoad(gx, gy, gz);
 
-            foreach(Node node in model.nodes)
-            {
-                if (node.z != 0)
-                {
-                    this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Plane strain element analysis can only be performed in the XY plane.");
-                    return;
-                }
-            }
-
-            Core.FEMur2D.Analyze.AnalyzeQ4 solver = new Core.FEMur2D.Analyze.AnalyzeQ4(model);
-            DA.SetData(0, solver.model);
+            DA.SetData(0, load);
         }
 
         /// <summary>
@@ -82,7 +78,7 @@ namespace FEMur.Components.Analyze
         /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("C6511621-F8DB-440B-92EC-0A20D18E1095"); }
+            get { return new Guid("DBBFE0EF-E7D2-45E7-836E-EAF393E4F60E"); }
         }
     }
 }

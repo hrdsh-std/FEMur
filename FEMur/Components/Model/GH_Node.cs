@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using Grasshopper;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
-using FEMur.Core.Model;
 using Grasshopper.Kernel.Types;
+using FEMur.Core.FEMur2D.Model;
 
 namespace FEMur.Components.Model
 {

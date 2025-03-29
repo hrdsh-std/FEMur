@@ -3,8 +3,7 @@ using System.Collections.Generic;
 
 using Grasshopper.Kernel;
 using Rhino.Geometry;
-using FEMur.Core.Model;
-using FEMur.Core.Analyze;
+using FEMur.Core.FEMur2D.Model;
 
 namespace FEMur.Components.Analyze
 {
@@ -59,7 +58,7 @@ namespace FEMur.Components.Analyze
                 }
             }
 
-            Core.Analyze.AnalyzeQ4I solver = new Core.Analyze.AnalyzeQ4I(model);
+            Core.FEMur2D.Analyze.AnalyzeQ4I solver = new Core.FEMur2D.Analyze.AnalyzeQ4I(model);
             DA.SetData(0, solver.model);
         }
 

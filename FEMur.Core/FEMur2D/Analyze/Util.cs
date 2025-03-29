@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Rhino.Geometry;
 
-namespace FEMur.Core.Analyze
+namespace FEMur.Core.FEMur2D.Analyze
 {
     internal class Util
     {

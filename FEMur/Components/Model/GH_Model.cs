@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 using Grasshopper.Kernel;
 using Rhino.Geometry;
-using FEMur.Core.Model;
+using FEMur.Core.FEMur2D.Model;
 
 namespace FEMur.Components.Model
 {
@@ -57,7 +57,7 @@ namespace FEMur.Components.Model
             if(!DA.GetDataList(3, loads))return;
             if (!DA.GetData(4, ref elementType)) return;
 
-            FEMur.Core.Model.FEMModel model = new FEMModel(nodes,elements,loads,supports,elementType);
+            FEMModel model = new FEMModel(nodes,elements,loads,supports,elementType);
             DA.SetData(0, model);
         }
 

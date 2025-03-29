@@ -5,7 +5,7 @@ using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
 using Rhino.Geometry;
-using FEMur.Core.Model;
+using FEMur.Core.FEMur2D.Model;
 
 namespace FEMur.Components.Model
 {

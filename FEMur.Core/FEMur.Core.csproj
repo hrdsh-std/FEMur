@@ -13,7 +13,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Visualize\" />
+    <Folder Include="Linalg\" />
+    <Folder Include="FEMur2D\Visualize\" />
   </ItemGroup>
 
 </Project>

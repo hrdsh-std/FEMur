@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FEMur.Core.Model
+namespace FEMur.Core.FEMur2D.Model
 {
     public class Support
     {
@@ -12,8 +12,8 @@ namespace FEMur.Core.Model
         public bool DX { get; }
         public bool DY { get; }
         public bool DZ { get; }
-        
-        public Support(Node node,bool DX,bool DY,bool DZ)
+
+        public Support(Node node, bool DX, bool DY, bool DZ)
         {
             this.node = node;
             this.DX = DX;

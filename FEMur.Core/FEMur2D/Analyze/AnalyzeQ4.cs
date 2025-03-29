@@ -4,13 +4,12 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
-using FEMur.Core.Model;
 using MathNet.Numerics.LinearAlgebra;
-using FEMur.Core.Analyze;
 using System.Security.Cryptography.X509Certificates;
+using FEMur.Core.FEMur2D.Model;
 
 
-namespace FEMur.Core.Analyze
+namespace FEMur.Core.FEMur2D.Analyze
 {
     public class AnalyzeQ4
     {
@@ -23,14 +22,14 @@ namespace FEMur.Core.Analyze
         public AnalyzeQ4(FEMModel model)
         {
             this.model = model;
-            this.gps = getGps();
-            this.K = this.calc_K();
-            this.f = this.calc_f();
-            this.model.result.d = this.calc_d(this.K, this.f);
-            this.model.result.stress = this.calc_stress();
+            gps = getGps();
+            K = calc_K();
+            f = calc_f();
+            this.model.result.d = calc_d(K, f);
+            this.model.result.stress = calc_stress();
         }
         //Jmatrixを計算するメソッド
-        public Matrix<double> Calc_J(Element element,double xi ,double eta)
+        public Matrix<double> Calc_J(Element element, double xi, double eta)
         {
             Matrix<double> dndxi = Matrix<double>.Build.DenseOfArray(new double[,]
             {
@@ -43,10 +42,10 @@ namespace FEMur.Core.Analyze
             Matrix<double> x = Matrix<double>.Build.Dense(4, 1);
             Matrix<double> y = Matrix<double>.Build.Dense(4, 1);
 
-            foreach(var item in element.nodes_id.Select((node_id,index) => new { node_id, index }))
+            foreach (var item in element.nodes_id.Select((node_id, index) => new { node_id, index }))
             {
-                x[item.index, 0] = this.model.nodes[item.node_id].x;
-                y[item.index, 0] = this.model.nodes[item.node_id].y;
+                x[item.index, 0] = model.nodes[item.node_id].x;
+                y[item.index, 0] = model.nodes[item.node_id].y;
             }
 
             Matrix<double> dxdxi = dndxi * x;
@@ -77,8 +76,8 @@ namespace FEMur.Core.Analyze
 
             foreach (var item in element.nodes_id.Select((node_id, index) => new { node_id, index }))
             {
-                x[item.index, 0] = this.model.nodes[item.node_id].x;
-                y[item.index, 0] = this.model.nodes[item.node_id].y;
+                x[item.index, 0] = model.nodes[item.node_id].x;
+                y[item.index, 0] = model.nodes[item.node_id].y;
             }
             Matrix<double> dxdxi = dndxi * x;
             Matrix<double> dydxi = dndxi * y;
@@ -124,10 +123,10 @@ namespace FEMur.Core.Analyze
         //全体剛性マトリクスKを計算するメソッド
         public Matrix<double> calc_K()
         {
-            Matrix<double> K = Matrix<double>.Build.Dense(this.model.nodes.Count * 2, this.model.nodes.Count * 2);
-            foreach (Element element in this.model.elements)
+            Matrix<double> K = Matrix<double>.Build.Dense(model.nodes.Count * 2, model.nodes.Count * 2);
+            foreach (Element element in model.elements)
             {
-                Matrix<double> Ke = calc_Ke(element, this.gps);
+                Matrix<double> Ke = calc_Ke(element, gps);
 
                 for (int i = 0; i < 4; i++)
                 {
@@ -142,25 +141,25 @@ namespace FEMur.Core.Analyze
             }
 
             //境界条件を考慮した剛性マトリクスを計算
-            foreach (Support support in this.model.supports)
+            foreach (Support support in model.supports)
             {
                 if (support.DX)
                 {
-                    for (int j = 0;j < this.model.nodes.Count * 2; j++)
+                    for (int j = 0; j < model.nodes.Count * 2; j++)
                     {
-                        K[support.node.id*2, j] = 0.0;
+                        K[support.node.id * 2, j] = 0.0;
                         K[j, support.node.id * 2] = 0.0;
                     }
                     K[support.node.id * 2, support.node.id * 2] = 1.0;
                 }
                 if (support.DY)
                 {
-                    for (int j = 0; j < this.model.nodes.Count * 2; j++)
+                    for (int j = 0; j < model.nodes.Count * 2; j++)
                     {
-                        K[support.node.id * 2+1, j] = 0.0;
-                        K[j,support.node.id * 2+1] = 0.0;
+                        K[support.node.id * 2 + 1, j] = 0.0;
+                        K[j, support.node.id * 2 + 1] = 0.0;
                     }
-                    K[support.node.id * 2+1, support.node.id * 2+1] = 1.0;
+                    K[support.node.id * 2 + 1, support.node.id * 2 + 1] = 1.0;
                 }
             }
             return K;
@@ -168,8 +167,8 @@ namespace FEMur.Core.Analyze
         //外力ベクトルを計算するメソッド
         public Matrix<double> calc_f()
         {
-            Matrix<double> f = Matrix<double>.Build.Dense(this.model.nodes.Count * 2, 1);
-            foreach ( Load load in this.model.loads)
+            Matrix<double> f = Matrix<double>.Build.Dense(model.nodes.Count * 2, 1);
+            foreach (Load load in model.loads)
             {
                 f[load.node.id * 2, 0] = load.Fx;
                 f[load.node.id * 2 + 1, 0] = load.Fy;
@@ -179,14 +178,14 @@ namespace FEMur.Core.Analyze
         //変位を計算するメソッド
         public Matrix<double> calc_d(Matrix<double> K, Matrix<double> f)
         {
-            Matrix<double> d = Matrix<double>.Build.Dense(this.model.nodes.Count * 2, 1);
+            Matrix<double> d = Matrix<double>.Build.Dense(model.nodes.Count * 2, 1);
             d = K.Inverse() * f;
             return d;
         }
         //積分点を設定するメソッド
         public double[,] getGps()
         {
-            if (this.model.elementType == 1 || this.model.elementType == 2)
+            if (model.elementType == 1 || model.elementType == 2)
             {
                 double[,] gps = new double[,]
                 {
@@ -214,21 +213,21 @@ namespace FEMur.Core.Analyze
                 };
                 return gps;
             }
-            
+
         }
         //節点変位dから節点応力を計算するメソッド(節点数x3matrix)
         public Matrix<double> calc_stress()
         {
-            Matrix<double> stress = Matrix<double>.Build.Dense(this.model.nodes.Count, 4);
-            List<int> node_count = Enumerable.Repeat(0, this.model.nodes.Count).ToList();
+            Matrix<double> stress = Matrix<double>.Build.Dense(model.nodes.Count, 8);
+            List<int> node_count = Enumerable.Repeat(0, model.nodes.Count).ToList();
 
-            foreach (Element element in this.model.elements)
+            foreach (Element element in model.elements)
             {
                 Matrix<double> d_elem = Matrix<double>.Build.Dense(element.nodes_id.Count * 2, 1);
                 foreach (var item in element.nodes_id.Select((node_id, index) => new { node_id, index }))
                 {
-                    d_elem[item.index * 2, 0] = this.model.result.d[item.node_id * 2, 0];
-                    d_elem[item.index * 2 + 1, 0] = this.model.result.d[item.node_id * 2 + 1, 0];
+                    d_elem[item.index * 2, 0] = model.result.d[item.node_id * 2, 0];
+                    d_elem[item.index * 2 + 1, 0] = model.result.d[item.node_id * 2 + 1, 0];
                 }
                 Matrix<double> stress_elem = Matrix<double>.Build.Dense(element.nodes_id.Count, 3);//1次要素であればひとまずこれでOK、2次要素は要修正
                 for (int i = 0; i < gps.GetLength(0); i++)
@@ -255,23 +254,36 @@ namespace FEMur.Core.Analyze
 
                 foreach (var item in element.nodes_id.Select((node_id, index) => new { node_id, index }))
                 {
-                    double sigx = stress_node[item.index, 0];
-                    double sigy = stress_node[item.index, 1];
+                    double sigxx = stress_node[item.index, 0];
+                    double sigyy = stress_node[item.index, 1];
                     double tauxy = stress_node[item.index, 2];
-                    double mises = Math.Sqrt(Math.Pow(sigx, 2.0) - sigx * sigy + Math.Pow(sigy, 2.0) + 3.0 * Math.Pow(tauxy, 2.0));
+                    double p1 = (sigxx + sigyy) / 2.0 + Math.Sqrt(Math.Pow(sigxx - sigyy, 2.0) / 4.0 + Math.Pow(tauxy, 2.0));
+                    double p2 = (sigxx + sigyy) / 2.0 - Math.Sqrt(Math.Pow(sigxx - sigyy, 2.0) / 4.0 + Math.Pow(tauxy, 2.0));
+                    double mises = Math.Sqrt(Math.Pow(p1, 2.0) + Math.Pow(p2, 2.0) - p1 * p2);
+                    double avgStress = (p1 + p2) / 2.0;
+                    double tauMax = Math.Abs(p1 - p2) / 2.0;
+
                     node_count[item.node_id] += 1;
-                    stress[item.node_id, 0] += sigx;
-                    stress[item.node_id, 1] += sigy;
+                    stress[item.node_id, 0] += sigxx;
+                    stress[item.node_id, 1] += sigyy;
                     stress[item.node_id, 2] += tauxy;
-                    stress[item.node_id, 3] += mises;
+                    stress[item.node_id, 3] += p1;
+                    stress[item.node_id, 4] += p2;
+                    stress[item.node_id, 5] += mises;
+                    stress[item.node_id, 6] += avgStress;
+                    stress[item.node_id, 7] += tauMax;
                 }
             }
-            for (int i = 0; i < this.model.nodes.Count; i++)
+            for (int i = 0; i < model.nodes.Count; i++)
             {
                 stress[i, 0] /= node_count[i];
                 stress[i, 1] /= node_count[i];
                 stress[i, 2] /= node_count[i];
                 stress[i, 3] /= node_count[i];
+                stress[i, 4] /= node_count[i];
+                stress[i, 5] /= node_count[i];
+                stress[i, 6] /= node_count[i];
+                stress[i, 7] /= node_count[i];
             }
 
             return stress;

@@ -3,20 +3,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using FEMur.Core.Interface;
 
-namespace FEMur.Core.Model
+namespace FEMur.Core.DKTplate
 {
-    public class Section
+    public class Section:ISection
     {
-        public double thickness { get; }
+        public double Thickness { get; }
         public Section(double thickness)
         {
-            this.thickness = thickness;
+            this.Thickness = thickness;
         }
-
         public override string ToString()
         {
-            return $"thickness {thickness}";
+            return $"thickness {Thickness}";
         }
     }
 }

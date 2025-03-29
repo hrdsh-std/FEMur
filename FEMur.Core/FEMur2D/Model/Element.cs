@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FEMur.Core.Model
+namespace FEMur.Core.FEMur2D.Model
 {
     public class Element
     {

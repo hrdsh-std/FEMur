@@ -3,21 +3,21 @@ using System.Collections.Generic;
 
 using Grasshopper.Kernel;
 using Rhino.Geometry;
-using MathNet.Numerics.LinearAlgebra;
-using System.Linq;
-using FEMur.Core.FEMur2D.Model;
+using FEMur.Core.DKTplate;
+using FEMur.Core.Interface;
+using FEMur.Core.Common;
 
-namespace FEMur.Components.Analyze
+namespace FEMur.Components.DKTplate
 {
-    public class AnalyzeQ4 : GH_Component
+    public class DKT_Analyze : GH_Component
     {
         /// <summary>
         /// Initializes a new instance of the MyComponent1 class.
         /// </summary>
-        public AnalyzeQ4()
+        public DKT_Analyze()
           : base("Analyze", "A",
-              "This component performs plane strain element analysis. Plane strain elements can only be analyzed in the XY plane.",
-              "FEMur", "Analyze")
+              "Analyze Component(DKTplate)",
+              "FEMur", "DKTplate")
         {
         }
 
@@ -37,6 +37,7 @@ namespace FEMur.Components.Analyze
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddGenericParameter("Model", "M", "Model object", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Result", "R", "Result object", GH_ParamAccess.item);
         }
 
         /// <summary>
@@ -45,23 +46,15 @@ namespace FEMur.Components.Analyze
         /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            FEMModel model = null;
+            IFemModel model = null;
             bool run = false;
             if (!DA.GetData(0, ref model)) return;
             if (!DA.GetData(1, ref run)) return;
             if (!run) return;
 
-            foreach(Node node in model.nodes)
-            {
-                if (node.z != 0)
-                {
-                    this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Plane strain element analysis can only be performed in the XY plane.");
-                    return;
-                }
-            }
-
-            Core.FEMur2D.Analyze.AnalyzeQ4 solver = new Core.FEMur2D.Analyze.AnalyzeQ4(model);
+            FEMur.Core.DKTplate.Analyze solver = new FEMur.Core.DKTplate.Analyze(model);
             DA.SetData(0, solver.model);
+            DA.SetData(1,solver.result);
         }
 
         /// <summary>
@@ -82,7 +75,7 @@ namespace FEMur.Components.Analyze
         /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("C6511621-F8DB-440B-92EC-0A20D18E1095"); }
+            get { return new Guid("6B3BD381-086C-4F7E-8B40-F257C691BE32"); }
         }
     }
 }
