@@ -13,12 +13,12 @@ namespace FEMur.Components.Result
 {
     internal class Util
     {
-        public static List<Color> GetColors(List<double> stressList)
+        public static List<Color> GetColors(List<double> value)
         {
             List<Color> colors = new List<Color>();
-            double minVal = stressList.Min();
-            double maxVal = stressList.Max();
-            foreach (double val in stressList)
+            double minVal = value.Min();
+            double maxVal = value.Max();
+            foreach (double val in value)
             {
                 double ratio = (val - minVal) / (maxVal - minVal);
                 colors.Add(GetJetColor(ratio));

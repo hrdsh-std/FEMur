@@ -73,9 +73,9 @@ namespace FEMur.Core.DKTplate
             double[] ez = new double[] { n[0] / nNorm, n[1] / nNorm, n[2] / nNorm };
 
             //要素座標系のy軸
-            double[] ey = new double[] { ez[1] * ex[2] - ez[2] * ex[1], ez[2] * ex[0] - ez[0] * ex[2], ez[0] * ex[1] - ez[1] * ex[0] };
+            double[] ey = new double[] {ex[1] * ez[2] - ex[2] * ez[1],ex[2] * ez[0] - ex[0] * ez[2],ex[0] * ez[1] - ex[1] * ez[0]};
 
-            Matrix<double> T = Matrix<double>.Build.DenseOfArray(new double[,] { { ex[0], ex[1], ex[2] }, { ey[0], ey[1], ey[2] }, { ez[0], ez[1], ez[2] } });
+            Matrix<double> T = Matrix<double>.Build.DenseOfArray(new double[,] { { ex[0], ey[0], ez[0] }, { ex[1], ey[1], ez[1] }, { ex[2], ey[2], ez[2] } });
 
             return T;
         }
@@ -93,7 +93,7 @@ namespace FEMur.Core.DKTplate
             {
                 INode node = Nodes[element.NodesID[i]];
                 Matrix<double> globalCoordinates = Matrix<double>.Build.DenseOfArray(new double[,] { { node.X, node.Y, node.Z } });
-                Matrix<double> localCoordinate = T * (globalCoordinates - x0).Transpose();
+                Matrix<double> localCoordinate = T.Transpose() * (globalCoordinates - x0).Transpose();
                 localCoordinates.SetRow(i,localCoordinate.Column(0));
             }
 

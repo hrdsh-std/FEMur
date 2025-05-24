@@ -17,7 +17,7 @@ namespace FEMur.Core.DKTplate
         {
             this.YoungModulus = youngModulus;
             this.PoissonRatio = poissonRatio;
-            this.massDensity = massDensity;
+            this.massDensity = massDensity;//g/cm3 
         }
         public override string ToString()
         {

@@ -9,17 +9,16 @@ using System.Linq;
 using System.Drawing;
 using FEMur.Components.Result;
 
-
 namespace FEMur.Components.DKTplate
 {
-    public class DKT_Deformation : GH_Component
+    public class DKT_EigenMode : GH_Component
     {
         /// <summary>
         /// Initializes a new instance of the MyComponent1 class.
         /// </summary>
-        public DKT_Deformation()
-          : base("Deformation", "D",
-              "Defromation Component(DKTplate)",
+        public DKT_EigenMode()
+          : base("EigenMode", "EM",
+              "EigenMode Component(DKTplate)",
               "FEMur", "DKTplate")
         {
         }
@@ -31,8 +30,10 @@ namespace FEMur.Components.DKTplate
         {
             pManager.AddGenericParameter("Model", "M", "Model object", GH_ParamAccess.item);
             pManager.AddGenericParameter("Result", "R", "Result object", GH_ParamAccess.item);
+            pManager.AddIntegerParameter("Mode", "M", "Mode number", GH_ParamAccess.item, 0);
             pManager.AddNumberParameter("Deformation ratio", "DR", "deformation ratio", GH_ParamAccess.item, 50.0);
             pManager[2].Optional = true;
+            pManager[3].Optional = true;
         }
 
         /// <summary>
@@ -43,9 +44,10 @@ namespace FEMur.Components.DKTplate
             pManager.AddGenericParameter("Model", "M", "Model object", GH_ParamAccess.item);
             pManager.AddGenericParameter("Result", "R", "Result object", GH_ParamAccess.item);
             pManager.AddMeshParameter("Deformed Mesh", "DM", "Deformed Mesh", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Max Disp", "MaxD", "Max Displacement", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Eigen period(s)", "EP", "Eigen period", GH_ParamAccess.item);
             pManager.AddColourParameter("Legend Color", "C", "Legend Color", GH_ParamAccess.list);
             pManager.AddNumberParameter("Legend Tag", "T", "Legend Tag", GH_ParamAccess.list);
+
         }
 
         /// <summary>
@@ -56,26 +58,39 @@ namespace FEMur.Components.DKTplate
         {
             IFemModel model = null;
             FEMur.Core.DKTplate.Result result = null;
+            int mode = 0;
             double d_ratio = 0;
             if (!DA.GetData(0, ref model))
             {
                 this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Analysis has not been executed.");
                 return;
             }
-            if (!DA.GetData(1,ref result))
+            if (!DA.GetData(1, ref result))
             {
                 this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Analysis has not been executed.");
                 return;
             }
-            if (!DA.GetData(2, ref d_ratio)) return;
+            if (!DA.GetData(2, ref mode)) return;
+
+            if (mode < 0 || mode >= result.eigenvalues.Count)
+            {
+                this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Mode number is out of range.");
+                return;
+            }
+
+            if (!DA.GetData(3, ref d_ratio)) return;
             if (model == null)
             {
                 this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Analysis has not been executed.");
             }
 
-            Mesh deformation = deformationMesh(model, result, d_ratio);
-            var d = result.d;
-            List<double> dNorm = Enumerable.Range(0, d.RowCount /  6).Select(i => Math.Sqrt(d[6 * i, 0] * d[6 * i, 0] + d[6 * i + 1, 0] * d[6 * i + 1, 0] + d[6 * i + 2, 0] * d[6 * i + 2, 0])).ToList();
+            var eigenValue = result.eigenvalues[mode].Real;
+            var omega = Math.Sqrt(eigenValue);
+            var eigenperiod = (2 * Math.PI) / omega;
+            var eigenVector = result.eigenvectors.Column(mode);
+
+            Mesh deformation = deformationMesh(model, result, mode ,d_ratio);
+            List<double> dNorm = Enumerable.Range(0, eigenVector.Count / 6).Select(i => Math.Sqrt(eigenVector[6 * i] * eigenVector[6 * i] + eigenVector[6 * i + 1] * eigenVector[6 * i + 1] + eigenVector[6 * i + 2] * eigenVector[6 * i + 2])).ToList();
             double max_d = dNorm.Max();
 
             //色の設定
@@ -103,7 +118,7 @@ namespace FEMur.Components.DKTplate
             DA.SetData(0, model);
             DA.SetData(1, result);
             DA.SetData(2, deformation);
-            DA.SetData(3, max_d);
+            DA.SetData(3, eigenperiod);
             DA.SetDataList(4, tagColor);
             DA.SetDataList(5, tagList);
         }
@@ -126,15 +141,18 @@ namespace FEMur.Components.DKTplate
         /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("B268ABAC-D5B8-4CFC-B853-3F8465C2C222"); }
+            get { return new Guid("2DFFACAE-AE0E-45A3-9220-E73CADB59A07"); }
         }
 
-        public  Mesh deformationMesh(IFemModel model, FEMur.Core.DKTplate.Result result ,double d_ratio)
+        public Mesh deformationMesh(IFemModel model, FEMur.Core.DKTplate.Result result,int mode , double d_ratio)
         {
+            var eigenVector = result.eigenvectors.Column(mode);
+            var eigenValue = result.eigenvalues[mode].Real;
+
             List<Point3d> deformation = new List<Point3d>();
             for (int i = 0; i < model.Nodes.Count; i++)
             {
-                deformation.Add(new Point3d(model.Nodes[i].X + result.d[i * 6, 0] * d_ratio, model.Nodes[i].Y + result.d[i * 6 + 1, 0] * d_ratio, model.Nodes[i].Z + result.d[i * 6 + 2, 0] * d_ratio));
+                deformation.Add(new Point3d(model.Nodes[i].X + eigenVector[i * 6] * d_ratio, model.Nodes[i].Y + eigenVector[i * 6 + 1] * d_ratio, model.Nodes[i].Z + eigenVector[i * 6 + 2] * d_ratio));
             }
             //deformationをMeshに変換
             Mesh meshes = new Mesh();

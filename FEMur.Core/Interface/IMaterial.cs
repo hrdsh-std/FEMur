@@ -10,7 +10,7 @@ namespace FEMur.Core.Interface
     {
         public double YoungModulus { get; }
         public double PoissonRatio { get; }
-        public double massDensity { get; }
+        public double massDensity { get; }//g/cm2
         string ToString();
     }
 }

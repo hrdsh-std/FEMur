@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using FEMur.Core.Common;
@@ -23,6 +24,10 @@ namespace FEMur.Core.DKTplate
         public Matrix<double>? shearForce { get; set; }
         public Matrix<double>? bendingMoment { get; set; }
 
+        public MathNet.Numerics.LinearAlgebra.Vector<Complex> eigenvalues { get; set; }
+        public MathNet.Numerics.LinearAlgebra.Matrix<double> eigenvectors { get; set; }
+
+
 
         public Result()
         {
@@ -31,6 +36,11 @@ namespace FEMur.Core.DKTplate
         public void SetDisplacement(Matrix<double> d)
         {
             this.d = d;
+        }
+        public void SetEigen(MathNet.Numerics.LinearAlgebra.Vector<Complex> eigenvalues, MathNet.Numerics.LinearAlgebra.Matrix<double> eigenvectors)
+        {
+            this.eigenvalues = eigenvalues;
+            this.eigenvectors = eigenvectors;
         }
 
         public void AddStress(Matrix<double> stress)
