@@ -44,7 +44,7 @@ namespace FEMur.Components.DKTplate
             pManager.AddGenericParameter("Model", "M", "Model object", GH_ParamAccess.item);
             pManager.AddGenericParameter("Result", "R", "Result object", GH_ParamAccess.item);
             pManager.AddMeshParameter("Deformed Mesh", "DM", "Deformed Mesh", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Eigen period(s)", "EP", "Eigen period", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Eigen frequency(1/s)", "EP", "Eigen frequency(1/s)", GH_ParamAccess.item);
             pManager.AddColourParameter("Legend Color", "C", "Legend Color", GH_ParamAccess.list);
             pManager.AddNumberParameter("Legend Tag", "T", "Legend Tag", GH_ParamAccess.list);
 
@@ -86,7 +86,7 @@ namespace FEMur.Components.DKTplate
 
             var eigenValue = result.eigenvalues[mode].Real;
             var omega = Math.Sqrt(eigenValue);
-            var eigenperiod = (2 * Math.PI) / omega;
+            var frequency = omega / (2 * Math.PI);
             var eigenVector = result.eigenvectors.Column(mode);
 
             Mesh deformation = deformationMesh(model, result, mode ,d_ratio);
@@ -118,7 +118,7 @@ namespace FEMur.Components.DKTplate
             DA.SetData(0, model);
             DA.SetData(1, result);
             DA.SetData(2, deformation);
-            DA.SetData(3, eigenperiod);
+            DA.SetData(3, frequency);
             DA.SetDataList(4, tagColor);
             DA.SetDataList(5, tagList);
         }

@@ -21,13 +21,22 @@
     <Company>FEMur Authors</Company>
     <Description>Description of FEMur</Description>
   </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+	    <DefineConstants>DEBUG;TRACE</DefineConstants>
+	    <DebugSymbols>true</DebugSymbols>
+		<OutputPath>bin\Debug\</OutputPath>
+	    <DebugType>full</DebugType>
+	    <Optimize>false</Optimize>
+    </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="Grasshopper" Version="8.0.23304.9001" ExcludeAssets="runtime" />
+    <PackageReference Include="Grasshopper" Version="8.19.25132.1001" ExcludeAssets="runtime" />
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.7.3" />
     <PackageReference Include="MSTest.TestFramework" Version="3.7.3" />
+    <PackageReference Include="System.Collections.Immutable" Version="7.0.0" />
     <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
   </ItemGroup>
   
