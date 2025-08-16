@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!-- Select the framework(s) you wish to target.
+        Rhino 6: net45
+        Rhino 7: net48
+        Rhino 8 Windows: net48, net7.0, net7.0-windows, net7.0-windows10.0.22000.0, etc
+        Rhino 8 Mac: net7.0, net7.0-macos, net7.0-macos12.0, etc
+    -->
+		<TargetFrameworks>net7.0-windows;net48</TargetFrameworks>
+		<EnableWindowsTargeting>true</EnableWindowsTargeting>
+		<Platforms>AnyCPU;x64</Platforms>
+	</PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FEMur.GH\FEMur.GH.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Loads\" />
+    <Folder Include="Models\" />
+    <Folder Include="Supports\" />
+  </ItemGroup>
+
+</Project>

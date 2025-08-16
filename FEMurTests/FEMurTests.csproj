@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+	    <!-- Select the framework(s) you wish to target.
+        Rhino 6: net45
+        Rhino 7: net48
+        Rhino 8 Windows: net48, net7.0, net7.0-windows, net7.0-windows10.0.22000.0, etc
+        Rhino 8 Mac: net7.0, net7.0-macos, net7.0-macos12.0, etc
+    -->
+	    <TargetFrameworks>net48</TargetFrameworks>
+	    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+	    <Platforms>AnyCPU;x64</Platforms>
+    </PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.10.0" />
+		<PackageReference Include="MSTest.TestAdapter" Version="2.2.10" />
+		<PackageReference Include="MSTest.TestFramework" Version="2.2.10" />
+	</ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FEMur\FEMur.csproj" />
+  </ItemGroup>
+
+
+</Project>
