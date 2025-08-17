@@ -14,7 +14,7 @@ namespace FEMur.Geometry
         public double Y { get; set; }
         public double Z { get; set; }
         public double Length => Math.Sqrt(X * X + Y * Y + Z * Z);
-        public Vector3 Vector3 => new Vector3((float)X, (float)Y, (float)Z);
+        public System.Numerics.Vector3 Vector3 => new System.Numerics.Vector3((float)X, (float)Y, (float)Z);
 
         public double this[int index]
         {
@@ -73,7 +73,7 @@ namespace FEMur.Geometry
             Z = other.Z;
         }
 
-        public Point3(Vector3 vector)
+        public Point3(System.Numerics.Vector3 vector)
         {
             X = vector.X;
             Y = vector.Y;
@@ -104,7 +104,7 @@ namespace FEMur.Geometry
             if (Y != other.Y) return Y.CompareTo(other.Y);
             return Z.CompareTo(other.Z);
         }
-        public void Add(Vector3 vec)
+        public void Add(System.Numerics.Vector3 vec)
         {
             this.X += vec.X;
             this.Y += vec.Y;

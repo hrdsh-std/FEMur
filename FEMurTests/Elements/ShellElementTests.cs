@@ -14,7 +14,7 @@ namespace FEMur.Elements.Tests
         [TestMethod()]
         public void ShellElementTest()
         {
-            Assert.Fail();
+            throw new NotImplementedException("This test has not been implemented yet.");
         }
     }
 }

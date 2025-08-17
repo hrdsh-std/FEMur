@@ -61,6 +61,8 @@ namespace FEMur.Geometry
             throw new NotImplementedException("Face3 Serialization not implemented yet.");
         }
 
+        #endregion
+
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             info.AddValue("A", A);
@@ -78,7 +80,35 @@ namespace FEMur.Geometry
         {
             return obj is Face3 face && this.A == A && this.B == face.B && this.C == face.C && this.D == face.D;
         }
-        #endregion
+        //Edge3を列挙型で返すメソッド
+        public IEnumerable<Edge3> Edges()
+        {
+            if (IsTriangle)
+            {
+                yield return new Edge3(A, B);
+                yield return new Edge3(B, C);
+                yield return new Edge3(C, A);
+                yield break;
+            }
+            if (IsQuad)
+            {
+                yield return new Edge3(A, B);
+                yield return new Edge3(B, C);
+                yield return new Edge3(C, D);
+                yield return new Edge3(D, A);
+                yield break;
+            }
+        }
 
+        #region operators
+        public static bool operator ==(Face3 a, Face3 b)
+        {
+            return a.Equals(b);
+        }
+        public static bool operator !=(Face3 a, Face3 b)
+        {
+            return !a.Equals(b);
+        }
+        #endregion
     }
 }
