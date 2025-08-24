@@ -9,35 +9,28 @@ namespace FEMur.Materials
 {
     public class Material_Isotropic : Material,ISerializable
     {
-        public double YoungsModulus { get; set; }
-        public double PoissonsRatio { get; set; }
+        public double E { get; set; }
+        public double nu { get; set; }
         
-        public Material_Isotropic(
-            string name,
-            double density,
-            double youngsModulus,
-            double poissonsRatio
-            ):base(name, density)
+        public Material_Isotropic()
         {
-            YoungsModulus = youngsModulus;
-            PoissonsRatio = poissonsRatio;
         }
         //シリアライズ用コンストラクタ
         public Material_Isotropic(SerializationInfo info, StreamingContext context):base(info, context)
         {
-            YoungsModulus = info.GetDouble("YoungsModulus");
-            PoissonsRatio = info.GetDouble("PoissonsRatio");
+            E = info.GetDouble("YoungsModulus");
+            nu = info.GetDouble("PoissonsRatio");
         }
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
-            info.AddValue("YoungsModulus", YoungsModulus);
-            info.AddValue("PoissonsRatio", PoissonsRatio);
+            info.AddValue("YoungsModulus", E);
+            info.AddValue("PoissonsRatio", nu);
             throw new NotImplementedException("Serialization not implemented yet.");
         }
         public override string ToString()
         {
-            return $"{base.ToString()}, Young's Modulus: {YoungsModulus} Pa, Poisson's Ratio: {PoissonsRatio}";
+            return $"{base.ToString()}, Young's Modulus: {E} Pa, Poisson's Ratio: {nu}";
         }
     }
 }

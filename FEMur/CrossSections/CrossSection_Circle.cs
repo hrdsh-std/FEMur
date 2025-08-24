@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FEMur.Elements
+namespace FEMur.CrossSections
 {
-    public abstract class LineElementBase:ElementBase,ISerializable
+    internal class CrossSection_Circle
     {
-        
     }
 }
