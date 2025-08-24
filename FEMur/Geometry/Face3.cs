@@ -33,7 +33,7 @@ namespace FEMur.Geometry
 
         }
         #endregion
-
+ 
         #region Constructors
         public Face3(int v1, int v2, int v3)
         {

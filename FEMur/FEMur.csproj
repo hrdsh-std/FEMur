@@ -16,9 +16,4 @@
     <ProjectReference Include="..\FEMur.GH\FEMur.GH.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Loads\" />
-    <Folder Include="Models\" />
-  </ItemGroup>
-
 </Project>
