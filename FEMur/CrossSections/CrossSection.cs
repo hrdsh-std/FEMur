@@ -10,10 +10,8 @@ namespace FEMur.CrossSections
     public abstract class CrossSection:ICloneable,ISerializable
     {
         #region　properties
-
+        public virtual int Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        protected List<string> Elem_ids { get; set; } = new List<string>();
-        protected Guid Guid{ get; set; }  = Guid.NewGuid();
 
         #endregion
 
@@ -21,9 +19,14 @@ namespace FEMur.CrossSections
         protected CrossSection()
         {
         }
-
-        protected CrossSection(string name)
+        public CrossSection(CrossSection other)
         {
+            this.Name = other.Name;
+            this.Id = other.Id;
+        }
+        protected CrossSection(int id,string name)
+        {
+            Id = id;
             Name = name;
         }
 
@@ -45,7 +48,7 @@ namespace FEMur.CrossSections
 
         public override string ToString()
         {
-            return $"CrossSection: {Name}, Guid: {Guid}";
+            return $"CrossSection: {Name}";
         }
     }
 }

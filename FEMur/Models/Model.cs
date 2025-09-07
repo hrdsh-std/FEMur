@@ -18,7 +18,6 @@ namespace FEMur.Models
     {
         public List<Node> Nodes { get; set; }
         public List<ElementBase> Elements { get; set; }
-        public List<Material> Materials { get; set; }
         public List<Support> Supports { get; set; }
         public List<Load> Loads { get; set; }
 
@@ -26,15 +25,24 @@ namespace FEMur.Models
         {
             Nodes = new List<Node>();
             Elements = new List<ElementBase>();
-            Materials = new List<Material>();
             Supports = new List<Support>();
             Loads = new List<Load>();
         }
+        public Model
+            (List<Node> nodes, List<ElementBase> elements, 
+            List<Support> supports,
+            List<Load> loads)
+        {
+            Nodes = nodes;
+            Elements = elements;
+            Supports = supports;
+            Loads = loads;
+        }
+
         public Model(Model other)
         {
             this.Nodes = other.Nodes;
             this.Elements = other.Elements;
-            this.Materials = other.Materials;
             this.Supports = other.Supports;
             this.Loads = other.Loads;
         }
@@ -43,7 +51,6 @@ namespace FEMur.Models
         {
             Nodes = (List<Node>)info.GetValue("Nodes", typeof(List<Node>));
             Elements = (List<ElementBase>)info.GetValue("Elements", typeof(List<ElementBase>));
-            Materials = (List<Material>)info.GetValue("Materials", typeof(List<Material>));
             Supports = (List<Support>)info.GetValue("Supports", typeof(List<Support>));
             Loads = (List<Load>)info.GetValue("Loads", typeof(List<Load>));
         }
@@ -52,7 +59,6 @@ namespace FEMur.Models
             base.GetObjectData(info, context);
             info.AddValue("Nodes", Nodes);
             info.AddValue("Elements", Elements);
-            info.AddValue("Materials", Materials);
             info.AddValue("Supports", Supports);
             info.AddValue("Loads", Loads);
         }
@@ -63,7 +69,6 @@ namespace FEMur.Models
             sb.AppendLine($"Model Summary:");
             sb.AppendLine($"Nodes: {Nodes.Count}");
             sb.AppendLine($"Elements: {Elements.Count}");
-            sb.AppendLine($"Materials: {Materials.Count}");
             sb.AppendLine($"Supports: {Supports.Count}");
             sb.AppendLine($"Loads: {Loads.Count}");
             return sb.ToString();
@@ -73,7 +78,6 @@ namespace FEMur.Models
             if (other == null) return false;
             return Nodes.SequenceEqual(other.Nodes) &&
                    Elements.SequenceEqual(other.Elements) &&
-                   Materials.SequenceEqual(other.Materials) &&
                    Supports.SequenceEqual(other.Supports) &&
                    Loads.SequenceEqual(other.Loads);
         }

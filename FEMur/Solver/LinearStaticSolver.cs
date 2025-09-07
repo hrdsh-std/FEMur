@@ -33,10 +33,6 @@ namespace FEMur.Solver
             Result result = CreateResult(model, displacements);
             return result;
         }
-
-
-
-
         #region private Methods
 
         protected Matrix<double> AssembleGlobalStiffness(Model model) 

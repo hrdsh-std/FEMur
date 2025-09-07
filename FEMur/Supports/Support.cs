@@ -18,6 +18,17 @@ namespace FEMur.Supports
         public bool[] Condition { get; private set; } = new bool[6];
         private Node.DOF[] dofs = new Node.DOF[6];
         public Support() { }
-
+        public Support(int id, int nodeId, double dx, double dy, double dz,double rx ,double ry,double rz)
+        {
+            Id = id;
+            NodeId = nodeId;
+            Displacement = new double[6] { dx, dy, dz, rx, ry, rz };
+        }
+        public Support(int id, Node node, double dx, double dy, double dz, double rx, double ry, double rz)
+        {
+            Id = id;
+            NodeId = node.Id;
+            Displacement = new double[6] { dx, dy, dz, rx, ry, rz };
+        }
     }
 }

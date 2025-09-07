@@ -13,30 +13,28 @@ namespace FEMur.Elements
     public abstract class ElementBase: CommonObject,ICloneable,ISerializable
     {
         public int Id { get; set; }
-        public int[] NodeIds { get; set; }
+        public List<int> NodeIds { get; set; }
         public int MaterialId { get; set; }
         public int CrossSectionId { get; set; }
-        public double Length { get; set; }
-        public double[] LocalAxis { get; set; } = new double[3] { 0, 0, 1 };
-        public Matrix<double> TransformationMatrix { get; set; }
-        public Matrix<double> LocalStiffness { get; set; }
-        public Matrix<double> GlobalStiffness { get; set; }
-        public Matrix<double> LocalMass { get; set; }
-        public Matrix<double> GlobalMass { get; set; }
-        public Matrix<double> LocalDamping { get; set; }
-        public Matrix<double> GlobalDamping { get; set; }
-        public ElementType Type { get; protected set; }
-        public enum ElementType
-        {
-            Truss,
-            Beam,
-            Frame,
-            Shell,
-            Solid
-        }
+        internal double Length { get; set; }
+        internal double[] LocalAxis { get; set; } = new double[3] { 0, 0, 1 };
+        internal Matrix<double> TransformationMatrix { get; set; }
+        internal Matrix<double> LocalStiffness { get; set; }
+        internal Matrix<double> GlobalStiffness { get; set; }
+        internal Matrix<double> LocalMass { get; set; }
+        internal Matrix<double> GlobalMass { get; set; }
+        internal Matrix<double> LocalDamping { get; set; }
+        internal Matrix<double> GlobalDamping { get; set; }
 
         protected ElementBase()
         {
+        }
+        protected ElementBase(int id, List<int> nodeIds, int materialId, int crossSectionId)
+        {
+            Id = id;
+            NodeIds = nodeIds;
+            MaterialId = materialId;
+            CrossSectionId = crossSectionId;
         }
 
         protected ElementBase(SerializationInfo info, StreamingContext context)

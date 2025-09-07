@@ -9,19 +9,21 @@ namespace FEMur.Materials
 {
     public abstract class Material:ISerializable
     {
+        public int Id { get; set; }
         public string Family { get; protected set; } = "Steel";
         public string Name { get; protected set; } = "SS400";
         public double E { get; protected set; } = 20500.0;
-        public double G { get; protected set; } = 8076.0;
+        public double Nu { get; protected set; } = 0.3;
         public double Density { get; protected set; }
         
         protected Material(){}
-        protected Material(string family,string name, double E, double G, double density)
+        protected Material(int id ,string family,string name, double E, double nu, double density)
         {
+            this.Id = id;
             this.Family = family;
             this.Name = name;
             this.E = E;
-            this.G = G;
+            this.Nu = nu;
             this.Density = density;
         }
         protected Material(SerializationInfo info, StreamingContext context)
@@ -41,5 +43,11 @@ namespace FEMur.Materials
             return $"Material: {Name}, Density: {Density} kg/m^3";
         }
 
+        //鉄を返す静的メソッド
+        public static Material_Isotropic Steel()
+        {
+            return new Material_Isotropic(0,"Steel", "SS400", 205000, 0.3, 7850);
+
+        }
     }
 }

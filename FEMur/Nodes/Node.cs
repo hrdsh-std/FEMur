@@ -23,6 +23,12 @@ namespace FEMur.Nodes
             this.Position = position;
             this.Position_disp = position;
         }
+        public Node(int id, double x, double y, double z)
+        {
+            Id = id;
+            this.Position = new Point3(x, y, z);
+            this.Position_disp = new Point3(x, y, z);
+        }
         public Node(Node other)
         {
             this.Position = other.Position;

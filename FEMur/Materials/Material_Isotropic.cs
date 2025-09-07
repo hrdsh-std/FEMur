@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Security.RightsManagement;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -20,6 +21,12 @@ namespace FEMur.Materials
         {
             E = info.GetDouble("YoungsModulus");
             nu = info.GetDouble("PoissonsRatio");
+        }
+        public Material_Isotropic(int  id,string family, string name, double E, double nu, double density)
+            : base(id,family, name, E, E / (2 * (1 + nu)), density)
+        {
+            this.E = E;
+            this.nu = nu;
         }
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
