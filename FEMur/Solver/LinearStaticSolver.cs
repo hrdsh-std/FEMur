@@ -14,7 +14,8 @@ namespace FEMur.Solver
 {
     public class LinearStaticSolver : Solver
     {
-        protected int dof = 3;
+        // 自由度（6自由度/節点）を仮定　あとでDOFの設定を追加する
+        protected int dof = 6;
         /// <summary>
         /// 線形静解析を実行する
         /// </summary>
@@ -25,13 +26,21 @@ namespace FEMur.Solver
             Matrix<double> globalK = AssembleGlobalStiffness(model);
             // 2. 荷重条件の適用
             Vector<double> globalF = AssembleGlobalLoad(model);
-            // 3. 境界条件の適用
-            ApplyBoundaryConditions(globalK, globalF, model);
-            // 4. 連立方程式の解法
-            Vector<double> displacements = solveEquation(globalK, globalF);
-            // 5. 結果の格納と返却
-            Result result = CreateResult(model, displacements);
+            // 4. 連立方程式の解法(境界条件の処理はここでいっしょに行う)
+            Vector<double> displacements = solve(globalK, globalF,model);
+            // 5. 結果の格納と返却 
+            Result result = new Result();
             return result;
+        }
+        public Vector<double> solveDisp(Model model)
+        {
+            // 1. グローバル剛性マトリックスの組立
+            Matrix<double> globalK = AssembleGlobalStiffness(model);
+            // 2. 荷重条件の適用
+            Vector<double> globalF = AssembleGlobalLoad(model);
+            // 4. 連立方程式の解法(境界条件の処理はここでいっしょに行う)
+            Vector<double> displacements = solve(globalK, globalF, model);
+            return displacements;
         }
         #region private Methods
 
@@ -46,10 +55,10 @@ namespace FEMur.Solver
                 // 要素を構成するノードのインデックスを取得
                 var nodeIndices = element.NodeIds.Select(id => model.Nodes.FindIndex(n => n.Id == id)).ToArray();
                 // 要素剛性マトリックスを取得
-                Matrix<double> elementGlobalK = element.GlobalStiffness;
-                for (int i = 0; i < element.NodeIds.Length; i++)
+                Matrix<double> elementGlobalK = element.CalcLocalStiffness(model.Nodes);
+                for (int i = 0; i < element.NodeIds.Count; i++)
                 {
-                    for (int j = 0; j < element.NodeIds.Length; j++)
+                    for (int j = 0; j < element.NodeIds.Count; j++)
                     {
                         int nodeI = element.NodeIds[i];
                         int nodeJ = element.NodeIds[j];
@@ -97,48 +106,55 @@ namespace FEMur.Solver
             }
             return globalF;
         }
-        protected void ApplyBoundaryConditions(Matrix<double> globalK, Vector<double> globalF, Model model)
+        protected Vector<double> solve(Matrix<double> globalK, Vector<double> globalF, Model model)
         {
             // 境界条件の適用
             //　既知マトリクスと未知マトリクスを分離して解く方法を採用
-            int totalDof = globalK.RowCount;
-            int freeDof = totalDof;
-            int fixedDof = 0;
-            Matrix<double> Kff, Kfc, Kcf, Kcc;
-            Vector<double> Ff, Fc;
+            var totalDof = globalK.RowCount;
+            var fixedDof = new HashSet<int>();
             List<int> fixedDofIndices = new List<int>();
 
-            foreach (var support in model.Supports)
+            //supportの情報から上記の変数・、マトリクスを更新して設定する。
+            //強制変位の処理は未実装
+            foreach(var support in model.Supports)
             {
-
-
+                for(int i = 0; i < dof; i++)
+                {
+                    if (support.Conditions[i]) fixedDof.Add(support.NodeId * dof + i);
+                }
             }
 
-            throw new NotImplementedException();
-        }
-        protected Vector<double> solveEquation(Matrix<double> globalK, Vector<double> globalF)
-        {
+            int[] freeDof = Enumerable.Range(0, totalDof).Where(i => !fixedDof.Contains(i)).ToArray();
+            Matrix<double> kff = Matrix<double>.Build.Dense(freeDof.Length, freeDof.Length);
+            Vector<double> ff = Vector<double>.Build.Dense(freeDof.Length);
+            for (int i = 0; i < freeDof.Length; i++)
+            {
+                ff[i] = globalF[freeDof[i]];
+                for (int j = 0; j < freeDof.Length; j++)
+                {
+                    kff[i, j] = globalK[freeDof[i], freeDof[j]];
+                }
+            }
+
+
+
+            Vector<double> displacements = Vector<double>.Build.Dense(totalDof);
             try
             {
-                return globalK.Solve(globalF);
+                var freeDisplacements = kff.Solve(ff);
+                for (int i = 0; i < freeDof.Length; i++)
+                {
+                    displacements[freeDof[i]] = freeDisplacements[i];
+                }
             }
             catch (Exception ex)
             {
                 throw new Exception($"Failed to solve linear system: {ex.Message}", ex);
             }
-        }
-        protected Result CreateResult(Model model, Vector<double> displacements)
-        {
-            Result result = new Result();
 
-            result.NodalDisplacements = displacements;
-            // 要素応力の計算
-            throw new NotImplementedException();
-        }
+            return displacements;
 
+        }
         #endregion
-
-
-
     }
 }

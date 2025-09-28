@@ -7,15 +7,19 @@ using System.Text;
 using System.Threading.Tasks;
 using FEMur.Utilities;
 using MathNet.Numerics.LinearAlgebra;
+using FEMur.Nodes;
+using FEMur.Materials;
+using FEMur.CrossSections;
+
 
 namespace FEMur.Elements
 {
-    public abstract class ElementBase: CommonObject,ICloneable,ISerializable
+    public abstract class ElementBase : CommonObject, ICloneable, ISerializable
     {
         public int Id { get; set; }
         public List<int> NodeIds { get; set; }
-        public int MaterialId { get; set; }
-        public int CrossSectionId { get; set; }
+        public Material Material { get; set; }
+        public CrossSection CrossSection { get; set; }
         internal double Length { get; set; }
         internal double[] LocalAxis { get; set; } = new double[3] { 0, 0, 1 };
         internal Matrix<double> TransformationMatrix { get; set; }
@@ -29,12 +33,12 @@ namespace FEMur.Elements
         protected ElementBase()
         {
         }
-        protected ElementBase(int id, List<int> nodeIds, int materialId, int crossSectionId)
+        protected ElementBase(int id, List<int> nodeIds, Material material, CrossSection_Beam crossSection)
         {
             Id = id;
             NodeIds = nodeIds;
-            MaterialId = materialId;
-            CrossSectionId = crossSectionId;
+            Material = material;
+            CrossSection = crossSection;
         }
 
         protected ElementBase(SerializationInfo info, StreamingContext context)
@@ -42,6 +46,6 @@ namespace FEMur.Elements
         {
         }
 
-        internal abstract Matrix<double> CalcLocalStiffness();
+        internal abstract Matrix<double> CalcLocalStiffness(List<Node> nodes);
     }
 }

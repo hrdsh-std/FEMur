@@ -7,6 +7,11 @@ using System.Threading.Tasks;
 using FEMur.CrossSections;
 using FEMur.Geometry;
 using FEMur.Materials;
+using MathNet.Numerics.LinearAlgebra;
+using FEMur.Nodes;
+using FEMur.Materials;
+using FEMur.CrossSections;
+
 
 namespace FEMur.Elements
 {
@@ -22,7 +27,9 @@ namespace FEMur.Elements
             CrossSection = crossSection;
             Material = material;
         }
-
-
+        internal override Matrix<double> CalcLocalStiffness(List<Node> nodes)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

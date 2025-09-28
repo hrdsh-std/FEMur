@@ -13,9 +13,9 @@ namespace FEMur.Supports
     {
         public int Id { get; }
         public int NodeId { get; }
+        public bool[] Conditions { get; private set; } = new bool[6];
         public double[] Displacement { get; private set; } = new double[6];
         public double[] Stiffness { get; private set; } = new double[6];
-        public bool[] Condition { get; private set; } = new bool[6];
         private Node.DOF[] dofs = new Node.DOF[6];
         public Support() { }
         public Support(int id, int nodeId, double dx, double dy, double dz,double rx ,double ry,double rz)
@@ -29,6 +29,12 @@ namespace FEMur.Supports
             Id = id;
             NodeId = node.Id;
             Displacement = new double[6] { dx, dy, dz, rx, ry, rz };
+        }
+        public Support(int id, int nodeID, bool fixDX, bool fixDY, bool fixDZ, bool fixRX, bool fixRY, bool fixRZ)
+        {
+            Id = id;
+            NodeId = nodeID;
+            Conditions = new bool[6] { fixDX, fixDY, fixDZ, fixRX, fixRY, fixRZ };
         }
     }
 }

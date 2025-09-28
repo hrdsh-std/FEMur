@@ -14,6 +14,15 @@ namespace FEMur.Materials
         public string Name { get; protected set; } = "SS400";
         public double E { get; protected set; } = 20500.0;
         public double Nu { get; protected set; } = 0.3;
+
+        public double G
+        {
+            get
+            {
+                return E / (2 * (1 + Nu));
+            }
+        }
+
         public double Density { get; protected set; }
         
         protected Material(){}

@@ -24,13 +24,17 @@ namespace FEMur.Materials
         public double Nuzx { get; private set; }
 
         public Material_Orthotropic(
+            int id,
+            string family,
             string name,
             double density,
             double ex, double ey, double ez,
             double gxy, double gyz, double gzx,
-            double nuxy, double nuyz, double nuzx
-            ) : base(name, density)
+            double nuxy, double nuyz, double nuzx)
         {
+            Id = id;
+            Family = family;
+            Name = name;
             Ex = ex;
             Ey = ey;
             Ez = ez;
