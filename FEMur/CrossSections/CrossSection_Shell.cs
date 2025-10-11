@@ -9,7 +9,6 @@ namespace FEMur.CrossSections
 {
     public class CrossSection_Shell : CrossSection,ISerializable
     {
-        public int Id { get; }
         public double Thickness { get; }
 
         public CrossSection_Shell()

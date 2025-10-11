@@ -47,5 +47,8 @@ namespace FEMur.Elements
         }
 
         internal abstract Matrix<double> CalcLocalStiffness(List<Node> nodes);
+
+        internal abstract Matrix<double> CalcTransformationMatrix(List<Node> nodes);
+
     }
 }

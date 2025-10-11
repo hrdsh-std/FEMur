@@ -58,7 +58,10 @@ namespace FEMur.Geometry
         }
         public Face3(SerializationInfo info, StreamingContext context)
         {
-            throw new NotImplementedException("Face3 Serialization not implemented yet.");
+            A = info.GetInt32("A");
+            B = info.GetInt32("B");
+            C = info.GetInt32("C");
+            D = info.GetInt32("D");
         }
 
         #endregion
@@ -69,17 +72,41 @@ namespace FEMur.Geometry
             info.AddValue("B", B);
             info.AddValue("C", C);
             info.AddValue("D", D);
-            throw new NotImplementedException("Face3 Serialization not implemented yet.");
         }
+
         public override string ToString()
         {
             return $"Face3: A={A}, B={B}, C={C}, D={D}";
         }
 
-        public bool Equals(Face3 obj)
+        // IEquatable<Face3>
+        public bool Equals(Face3 other)
         {
-            return obj is Face3 face && this.A == A && this.B == face.B && this.C == face.C && this.D == face.D;
+            return this.A == other.A && this.B == other.B && this.C == other.C && this.D == other.D;
         }
+
+        // object.Equals のオーバーライド
+        public override bool Equals(object obj)
+        {
+            if (obj is Face3 other)
+                return Equals(other);
+            return false;
+        }
+
+        // object.GetHashCode のオーバーライド（.NET 4.8 でも動作する手動合成）
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 31 + A.GetHashCode();
+                hash = hash * 31 + B.GetHashCode();
+                hash = hash * 31 + C.GetHashCode();
+                hash = hash * 31 + D.GetHashCode();
+                return hash;
+            }
+        }
+
         //Edge3を列挙型で返すメソッド
         public IEnumerable<Edge3> Edges()
         {

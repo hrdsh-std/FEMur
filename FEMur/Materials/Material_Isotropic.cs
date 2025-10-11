@@ -9,7 +9,6 @@ namespace FEMur.Materials
 {
     public class Material_Isotropic : Material,ISerializable
     {
-        public double E { get; set; }
         public double nu { get; set; }
         
         public Material_Isotropic()

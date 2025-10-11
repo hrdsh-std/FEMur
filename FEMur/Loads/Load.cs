@@ -25,7 +25,6 @@ namespace FEMur.Loads
         {
             this.LoadCase = loadCase;
         }
-        public virtual Load Clone() => (Load)this.MemberwiseClone();
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
