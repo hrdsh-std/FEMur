@@ -26,13 +26,17 @@ namespace FEMur.Solver
         public override Result Solve(Model model)
         {
             Matrix<double> globalK = AssembleGlobalStiffness(model);
-            // 物理的な支持バネ（任意、対角ペナルティ）は globalK に適用
             ApplySupportSprings(model, globalK);
 
             Vector<double> globalF = AssembleGlobalLoad(model);
             Vector<double> displacements = solve(globalK, globalF, model);
 
-            var result = new Result { NodalDisplacements = displacements };
+            var result = new Result
+            {
+                NodalDisplacements = displacements,
+                ElementStresses = CalcElementStresses(model, displacements)
+            };
+
             return result;
         }
 
@@ -43,6 +47,46 @@ namespace FEMur.Solver
 
             Vector<double> globalF = AssembleGlobalLoad(model);
             return solve(globalK, globalF, model);
+        }
+
+        /// <summary>
+        /// 全要素の断面力（応力）を計算
+        /// </summary>
+        protected List<Results.ElementStress> CalcElementStresses(Model model, Vector<double> globalDisplacements)
+        {
+            var elementStresses = new List<Results.ElementStress>();
+
+            foreach (var element in model.Elements)
+            {
+                if (element is BeamElement beamElement)
+                {
+                    // 要素の節点IDから節点インデックスを取得
+                    var nodeIndices = element.NodeIds
+                        .Select(id => model.Nodes.FindIndex(n => n.Id == id))
+                        .ToArray();
+
+                    // グローバル変位から要素の変位を抽出
+                    var elementDispGlobal = Vector<double>.Build.Dense(12);
+                    for (int i = 0; i < 2; i++) // 2節点要素
+                    {
+                        int nodeIdx = nodeIndices[i];
+                        for (int d = 0; d < dof; d++)
+                        {
+                            elementDispGlobal[i * dof + d] = globalDisplacements[nodeIdx * dof + d];
+                        }
+                    }
+
+                    // グローバル変位を局所変位に変換
+                    Matrix<double> T = element.CalcTransformationMatrix(model.Nodes);
+                    Vector<double> elementDispLocal = T * elementDispGlobal;
+
+                    // 断面力を計算
+                    var stress = beamElement.CalcElementStress(elementDispLocal, model.Nodes);
+                    elementStresses.Add(stress);
+                }
+            }
+
+            return elementStresses;
         }
 
         #region private Methods

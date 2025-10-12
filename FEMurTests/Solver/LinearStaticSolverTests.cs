@@ -1,5 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using FEMur.Solver;
+using System;
 using System.Collections.Generic;
 using FEMur.Nodes;
 using FEMur.Models;
@@ -17,7 +18,7 @@ namespace FEMur.Solver.Tests
     public class LinearStaticSolverTests
     {
         [TestMethod()]
-        public void SolveTest()
+        public void Simple_Cantilever_TipPointLoad_Deflection()
         {
             // 片持ち梁（X軸に沿って配置）
             Node node1 = new Node(0, 0.0, 0.0, 0.0);    // mm
@@ -398,6 +399,108 @@ namespace FEMur.Solver.Tests
             // オーダーチェック（mm単位で数値が妥当か）
             Assert.IsTrue(System.Math.Abs(dispY_n2) > 1e-6 && System.Math.Abs(dispY_n2) < 100.0,
                 $"変位 {dispY_n2:E3} のオーダーが妥当範囲にない");
+        }
+
+        [TestMethod()]
+        public void Cantilever_Stress_Verification()
+        {
+            // 片持ち梁の応力検証
+            double L = 1000.0;
+            Node n0 = new Node(0, 0.0, 0.0, 0.0);
+            Node n1 = new Node(1, L, 0.0, 0.0);
+            var nodes = new List<Node> { n0, n1 };
+
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+
+            var e0 = new BeamElement(0, n0, n1, material, cs);
+            var elements = new List<ElementBase> { e0 };
+
+            var supports = new List<Support>
+            {
+                new Support(0, n0.Id, true, true, true, true, true, true)
+            };
+
+            // 先端に -Y 方向 10N を作用
+            double P = 10.0;
+            var loads = new List<Load>
+            {
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+            };
+
+            var model = new Model(nodes, elements, supports, loads);
+            var solver = new LinearStaticSolver { EnableRegularization = false };
+            var result = solver.Solve(model);
+
+            // 応力検証
+            Assert.AreEqual(1, result.ElementStresses.Count, "要素数が1つであるべき");
+
+            var stress = result.ElementStresses[0];
+
+            // i端（固定端）の曲げモーメント: M = P * L
+            double expectedMz_i = P * L;
+            Assert.AreEqual(expectedMz_i, stress.Mz_i, Math.Abs(expectedMz_i) * 1e-6,
+                $"i端の曲げモーメント Mz_i={stress.Mz_i} が理論値 {expectedMz_i} と一致すべき");
+
+            // i端のせん断力: V = P
+            Assert.AreEqual(P, stress.Fy_i, Math.Abs(P) * 1e-6,
+                $"i端のせん断力 Fy_i={stress.Fy_i} が理論値 {-P} と一致すべき");
+
+            // j端（自由端）の曲げモーメント: ほぼ0
+            Assert.AreEqual(0.0, stress.Mz_j, Math.Abs(expectedMz_i) * 1e-3,
+                $"j端の曲げモーメント Mz_j={stress.Mz_j} はほぼ0であるべき");
+
+            // j端のせん断力: V = -P
+            Assert.AreEqual(-P, stress.Fy_j, Math.Abs(P) * 1e-6,
+                $"j端のせん断力 Fy_j={stress.Fy_j} が理論値 {-P} と一致すべき");
+        }
+
+        [TestMethod()]
+        public void SimplySupported_Stress_Verification()
+        {
+            // 単純支持梁（中央集中荷重）の応力検証
+            double L = 1000.0;
+            Node n0 = new Node(0, 0.0, 0.0, 0.0);
+            Node n1 = new Node(1, L / 2.0, 0.0, 0.0);
+            Node n2 = new Node(2, L, 0.0, 0.0);
+            var nodes = new List<Node> { n0, n1, n2 };
+
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+
+            var e0 = new BeamElement(0, n0, n1, material, cs);
+            var e1 = new BeamElement(1, n1, n2, material, cs);
+            var elements = new List<ElementBase> { e0, e1 };
+
+            var supports = new List<Support>
+            {
+                new Support(0, n0.Id, true, true, true, true, false, false),
+                new Support(1, n2.Id, false, true, true, true, false, false)
+            };
+
+            double P = 10.0;
+            var loads = new List<Load>
+            {
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+            };
+
+            var model = new Model(nodes, elements, supports, loads);
+            var solver = new LinearStaticSolver { EnableRegularization = true, EnableTranslationalRegularization = true };
+            var result = solver.Solve(model);
+
+            // 中央の最大曲げモーメント: M_max = P * L / 4
+            double expectedMzMax = P * L / 4.0;
+
+            var stress0 = result.ElementStresses[0];
+            var stress1 = result.ElementStresses[1];
+
+            // 左要素のj端（中央）の曲げモーメント
+            Assert.AreEqual(expectedMzMax, Math.Abs(stress0.Mz_j), expectedMzMax * 0.01,
+                $"中央の曲げモーメント |Mz|={Math.Abs(stress0.Mz_j)} が理論値 {expectedMzMax} に近いべき");
+
+            // せん断力: 左端 V = P/2
+            Assert.AreEqual(P / 2.0, stress0.Fy_i, P * 1e-3,
+                $"左端のせん断力 Fy={stress0.Fy_i} が理論値 {P / 2.0} に近いべき");
         }
     }
 }

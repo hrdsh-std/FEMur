@@ -12,6 +12,7 @@ using FEMur.CrossSections;
 using Grasshopper.Kernel.Geometry.SpatialTrees;
 using FEMur.Geometry;
 using Grasshopper.Kernel.Special;
+using FEMur.Results;
 
 namespace FEMur.Elements
 {
@@ -207,6 +208,41 @@ namespace FEMur.Elements
 
             this.TransformationMatrix = T;
             return T;
+        }
+        
+        /// <summary>
+        /// 要素の局所変位ベクトルから断面力（応力）を計算
+        /// </summary>
+        /// <param name="localDisplacements">局所座標系の変位ベクトル [12x1]</param>
+        /// <param name="nodes">節点リスト</param>
+        /// <returns>要素の断面力</returns>
+        public ElementStress CalcElementStress(Vector<double> localDisplacements, List<Node> nodes)
+        {
+            // 局所剛性行列を取得
+            Matrix<double> keLocal = CalcLocalStiffness(nodes);
+
+            // 局所座標系の断面力: f_local = K_local * u_local
+            Vector<double> forces = keLocal * localDisplacements;
+
+            var stress = new Results.ElementStress(this.Id);
+
+            // i端（節点1）の断面力
+            stress.Fx_i = forces[0];  // 軸力
+            stress.Fy_i = forces[1];  // せん断力Y
+            stress.Fz_i = forces[2];  // せん断力Z
+            stress.Mx_i = forces[3];  // ねじりモーメント
+            stress.My_i = forces[4];  // 曲げモーメントY
+            stress.Mz_i = forces[5];  // 曲げモーメントZ
+
+            // j端（節点2）の断面力
+            stress.Fx_j = forces[6];
+            stress.Fy_j = forces[7];
+            stress.Fz_j = forces[8];
+            stress.Mx_j = forces[9];
+            stress.My_j = forces[10];
+            stress.Mz_j = forces[11];
+
+            return stress;
         }
     }
 }

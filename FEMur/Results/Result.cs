@@ -9,9 +9,19 @@ namespace FEMur.Results
 {
     public class Result
     {
+        /// <summary>
+        /// 節点変位ベクトル（全自由度）
+        /// </summary>
         public Vector<double> NodalDisplacements { get; set; }
 
-        public Result() { }
+        /// <summary>
+        /// 要素ごとの断面力（応力）
+        /// </summary>
+        public List<ElementStress> ElementStresses { get; set; }
 
+        public Result()
+        {
+            ElementStresses = new List<ElementStress>();
+        }
     }
 }
