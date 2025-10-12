@@ -8,11 +8,11 @@ namespace FEMur.CrossSections
 {
     public class CrossSection_H : CrossSection_Beam
     {
-        public double B { get; set; } // フランジ幅
-        public double H { get; set; } // 全高
-        public double t_f { get; set; } // フランジ厚
-        public double t_w { get; set; } // ウェブ厚
-        public double r { get; set; } // 断面の内側のR
+        public double B { get; set; } // フランジ幅mm
+        public double H { get; set; } // 全高mm
+        public double t_f { get; set; } // フランジ厚mm
+        public double t_w { get; set; } // ウェブ厚mm
+        public double r { get; set; } // 断面の内側のRmm
 
         public CrossSection_H() { }
         public CrossSection_H(int id, string name, double b, double h, double t_f, double t_w, double r)

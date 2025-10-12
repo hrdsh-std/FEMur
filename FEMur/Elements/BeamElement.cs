@@ -59,31 +59,61 @@ namespace FEMur.Elements
             double kbz = E * Izz / (L * L * L);
 
             var k11 = Matrix<double>.Build.Dense(6, 6);
-            k11[0, 0] = ka;
-            k11[1, 1] = 12 * kbz;
-            k11[1, 5] = 6 * kbz * L;
-            k11[2, 2] = 12 * kby;
-            k11[2, 4] = -6 * kby * L;
-            k11[3, 3] = kt;
-            k11[4, 2] = -6 * kby * L;
-            k11[4, 4] = 4 * kby * L * L;
-            k11[5, 1] = 6 * kbz * L;
-            k11[5, 5] = 4 * kbz * L * L;
+            //i端UX
+            k11[0, 0] = ka;//
+            //i端UY
+            k11[1,1] = 12 * kbz;//
+            k11[1,5] = 6 * kbz * L;//
+            //i端UZ
+            k11[2, 2] = 12 * kby;//
+            k11[2, 4] = -6 * kby * L;//
+            //i端RX
+            k11[3, 3] = kt;//
+            //i端RY
+            k11[4, 2] = -6 * kby * L;//
+            k11[4, 4] = 4 * kby * L * L;//
+            //i端RZ
+            k11[5, 1] = 6 * kbz * L;//
+            k11[5, 5] = 4 * kbz * L * L;//
+
+            var k22 = Matrix<double>.Build.Dense(6, 6);
+
+            //j端UX
+            k22[0, 0] = ka; //
+            //j端UY
+            k22[1, 1] = 12 * kbz; //
+            k22[1, 5] = -6 * kbz * L; //
+            //j端UZ
+            k22[2, 2] = 12 * kby; //
+            k22[2, 4] = 6 * kby * L; //
+            //j端RX
+            k22[3, 3] = kt; //
+            //j端RY
+            k22[4, 2] = 6 * kby * L; //
+            k22[4, 4] = 4 * kby * L * L; //
+            //j端RZ
+            k22[5, 1] = -6 * kbz * L; //
+            k22[5, 5] = 4 * kbz * L * L; //
 
             var k12 = Matrix<double>.Build.Dense(6, 6);
+
             k12[0, 0] = -ka;
-            k12[1, 1] = -12 * kbz;
-            k12[1, 5] = 6 * kbz * L;
+            
+            k12[1,1] = -12 * kbz;
+            k12[1,5] =   6 * kbz * L;
+
             k12[2, 2] = -12 * kby;
-            k12[2, 4] = -6 * kby * L;
+            k12[2, 4] = - 6 * kby * L;
+
             k12[3, 3] = -kt;
-            k12[4, 2] = -6 * kby * L;
-            k12[4, 4] = 2 * kby * L * L;
-            k12[5, 1] = 6 * kbz * L;
-            k12[5, 5] = 2 * kbz * L * L;
+
+            k12[4, 2] =  6 * kby * L;
+            k12[4, 4] =  2 * kby * L * L;
+
+            k12[5, 1] = -6 * kbz * L;
+            k12[5, 5] =  2 * kbz * L * L;
 
             var k21 = k12.Transpose();
-            var k22 = k11;
 
             var ke = Matrix<double>.Build.Dense(12, 12);
 
@@ -159,12 +189,13 @@ namespace FEMur.Elements
             double eyn = Math.Sqrt(eyx * eyx + eyy * eyy + eyz * eyz);
             eyx /= eyn; eyy /= eyn; eyz /= eyn;
 
+            // グローバル→ローカル変換行列 R（行に ex, ey, ez を配置）
             var R = Matrix<double>.Build.Dense(3, 3);
-            R[0, 0] = exx; R[1, 0] = exy; R[2, 0] = exz;
-            R[0, 1] = eyx; R[1, 1] = eyy; R[2, 1] = eyz;
-            R[0, 2] = ezx; R[1, 2] = ezy; R[2, 2] = ezz;
+            R[0, 0] = exx; R[0, 1] = exy; R[0, 2] = exz;  // 行0: ex
+            R[1, 0] = eyx; R[1, 1] = eyy; R[1, 2] = eyz;  // 行1: ey
+            R[2, 0] = ezx; R[2, 1] = ezy; R[2, 2] = ezz;  // 行2: ez
 
-            // 12x12 のブロック対角 T を明示ループで構成（SetSubMatrix は使わない）
+            // 12x12 のブロック対角 T を明示ループで構成
             var T = Matrix<double>.Build.Dense(12, 12);
             int[] bases = new[] { 0, 3, 6, 9 }; // (0,0), (3,3), (6,6), (9,9)
             foreach (var b in bases)
