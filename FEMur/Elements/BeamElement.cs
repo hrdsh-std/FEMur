@@ -1,18 +1,12 @@
-﻿using System;
+﻿using FEMur.CrossSections;
+using FEMur.Materials;
+using FEMur.Nodes;
+using FEMur.Results;
+using MathNet.Numerics.LinearAlgebra;
+using System;
 using System.Collections.Generic;
-using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
-using MathNet.Numerics.LinearAlgebra;
-using FEMur.Nodes;
-using FEMur.Materials;
-using FEMur.CrossSections;
-using Grasshopper.Kernel.Geometry.SpatialTrees;
-using FEMur.Geometry;
-using Grasshopper.Kernel.Special;
-using FEMur.Results;
 
 namespace FEMur.Elements
 {
@@ -63,8 +57,8 @@ namespace FEMur.Elements
             //i端UX
             k11[0, 0] = ka;//
             //i端UY
-            k11[1,1] = 12 * kbz;//
-            k11[1,5] = 6 * kbz * L;//
+            k11[1, 1] = 12 * kbz;//
+            k11[1, 5] = 6 * kbz * L;//
             //i端UZ
             k11[2, 2] = 12 * kby;//
             k11[2, 4] = -6 * kby * L;//
@@ -99,20 +93,20 @@ namespace FEMur.Elements
             var k12 = Matrix<double>.Build.Dense(6, 6);
 
             k12[0, 0] = -ka;
-            
-            k12[1,1] = -12 * kbz;
-            k12[1,5] =   6 * kbz * L;
+
+            k12[1, 1] = -12 * kbz;
+            k12[1, 5] = 6 * kbz * L;
 
             k12[2, 2] = -12 * kby;
-            k12[2, 4] = - 6 * kby * L;
+            k12[2, 4] = -6 * kby * L;
 
             k12[3, 3] = -kt;
 
-            k12[4, 2] =  6 * kby * L;
-            k12[4, 4] =  2 * kby * L * L;
+            k12[4, 2] = 6 * kby * L;
+            k12[4, 4] = 2 * kby * L * L;
 
             k12[5, 1] = -6 * kbz * L;
-            k12[5, 5] =  2 * kbz * L * L;
+            k12[5, 5] = 2 * kbz * L * L;
 
             var k21 = k12.Transpose();
 
@@ -123,10 +117,10 @@ namespace FEMur.Elements
             {
                 for (int c = 0; c < 6; c++)
                 {
-                    ke[r, c]       = k11[r, c]; // (0,0)
-                    ke[r, c + 6]   = k12[r, c]; // (0,6)
-                    ke[r + 6, c]   = k21[r, c]; // (6,0)
-                    ke[r + 6, c+6] = k22[r, c]; // (6,6)
+                    ke[r, c] = k11[r, c]; // (0,0)
+                    ke[r, c + 6] = k12[r, c]; // (0,6)
+                    ke[r + 6, c] = k21[r, c]; // (6,0)
+                    ke[r + 6, c + 6] = k22[r, c]; // (6,6)
                 }
             }
 
@@ -209,7 +203,7 @@ namespace FEMur.Elements
             this.TransformationMatrix = T;
             return T;
         }
-        
+
         /// <summary>
         /// 要素の局所変位ベクトルから断面力（応力）を計算
         /// </summary>
@@ -243,6 +237,11 @@ namespace FEMur.Elements
             stress.Mz_j = forces[11];
 
             return stress;
+        }
+        // Tostringのoverride
+        public override string ToString()
+        {
+               return $"BeamElement(Id:{Id}, Node1:{NodeIds[0]}, Node2:{NodeIds[1]}, Material:{Material.Name}, CrossSection:{CrossSection.Name})";
         }
     }
 }

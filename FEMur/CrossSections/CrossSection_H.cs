@@ -38,6 +38,10 @@ namespace FEMur.CrossSections
             // 偏心モーメント
             this.J = (1 / 3.0) * (2 * B * Math.Pow(t_f, 3) + (H - 2 * t_f) * Math.Pow(t_w, 3));
         }
+        public override string ToString()
+        {
+            return $"CrossSection_H(Id={Id}, Name={Name})";
+        }
 
     }
 }

@@ -1,14 +1,10 @@
-﻿using System;
+﻿using FEMur.CrossSections;
+using FEMur.Materials;
+using FEMur.Nodes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
-using FEMur.CrossSections;
-using FEMur.Geometry;
-using FEMur.Materials;
-using FEMur.Nodes;
-using Grasshopper.Kernel.Geometry.SpatialTrees;
 
 namespace FEMur.Elements
 {

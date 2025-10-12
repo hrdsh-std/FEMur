@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using FEMur.Geometry;
 using FEMur.Utilities;
 
-
 namespace FEMur.Nodes
 {
     public class Node:CommonObject,ISerializable
@@ -48,7 +47,8 @@ namespace FEMur.Nodes
 
         public override string ToString()
         {
-            return $"node-ind:{this.Id.ToString()}: ({this.Position.X.ToString()}/{this.Position.Y.ToString()}/{this.Position.Z.ToString()})";
+            // 座標を小数第2位までで表示
+            return $"node-ind:{this.Id}: ({this.Position.X:F2}/{this.Position.Y:F2}/{this.Position.Z:F2})";
         }
 
     }

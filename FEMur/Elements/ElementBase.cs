@@ -50,5 +50,9 @@ namespace FEMur.Elements
 
         internal abstract Matrix<double> CalcTransformationMatrix(List<Node> nodes);
 
+        //Tostringの実装を強制
+        public abstract override string ToString();
+
+
     }
 }
