@@ -5,9 +5,9 @@ using Grasshopper;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 
-namespace FEMur.GH
+namespace FEMurGH
 {
-    public class FEMur : GH_Component
+    public class FEMurGH : GH_Component
     {
         /// <summary>
         /// Each implementation of GH_Component must provide a public 
@@ -16,7 +16,7 @@ namespace FEMur.GH
         /// Subcategory the panel. If you use non-existing tab or panel names, 
         /// new tabs/panels will automatically be created.
         /// </summary>
-        public FEMur()
+        public FEMurGH()
           : base("FEMur", "FEMur",
             "Description",
             "FEMur", "Utilities")

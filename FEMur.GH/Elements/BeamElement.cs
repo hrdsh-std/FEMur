@@ -8,7 +8,7 @@ using FEMMat = FEMur.Materials.Material;
 using FEMCS = FEMur.CrossSections.CrossSection_Beam;
 using FEMBeamElement = FEMur.Elements.BeamElement;
 
-namespace FEMur.GH.Elements
+namespace FEMurGH.Elements
 {
     /// <summary>
     /// 入力: List<Node> i端Node, List<Node> j端Node, Material, CrossSection_Beam

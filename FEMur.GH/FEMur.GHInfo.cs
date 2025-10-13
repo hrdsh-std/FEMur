@@ -3,7 +3,7 @@ using System.Drawing;
 using Grasshopper;
 using Grasshopper.Kernel;
 
-namespace FEMur.GH
+namespace FEMurGH
 {
     public class FEMur_GHInfo : GH_AssemblyInfo
     {

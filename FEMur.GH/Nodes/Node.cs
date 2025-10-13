@@ -5,7 +5,7 @@ using Rhino.Geometry;
 using FEMur.Nodes;
 
 
-namespace FEMur.GH.Nodes
+namespace FEMurGH.Nodes
 {
     /// <summary>
     /// 入力: List<Point>（Point3d） 出力: List<FEMur.Node>

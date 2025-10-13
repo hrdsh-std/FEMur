@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.Serialization;
 using FEMur.Geometry;
+using FEMur.Nodes;
 
 namespace FEMur.Loads
 {
@@ -35,6 +36,12 @@ namespace FEMur.Loads
             : base(idx, force, moment, local)
         {
         }
+
+        public PointLoad(Node node, Vector3 force, Vector3 moment, bool local)
+            : base(node?.Id ?? throw new ArgumentNullException(nameof(node)), force, moment, local)
+        {
+        }
+
         protected PointLoad(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {

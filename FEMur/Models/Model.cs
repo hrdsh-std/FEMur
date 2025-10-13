@@ -11,6 +11,7 @@ using FEMur.Elements;
 using FEMur.Materials;
 using FEMur.Supports;
 using FEMur.Loads;
+using FEMur.Results;
 
 namespace FEMur.Models
 {
@@ -21,13 +22,22 @@ namespace FEMur.Models
         public List<Support> Supports { get; set; }
         public List<Load> Loads { get; set; }
 
+        // 追加: 解析結果を保持
+        public Result Result { get; set; }
+
+        // 追加: 計算済みフラグ
+        public bool IsSolved { get; set; }
+
         public Model()
         {
             Nodes = new List<Node>();
             Elements = new List<ElementBase>();
             Supports = new List<Support>();
             Loads = new List<Load>();
+            Result = null;
+            IsSolved = false;
         }
+
         public Model
             (List<Node> nodes, List<ElementBase> elements, 
             List<Support> supports,
@@ -37,6 +47,8 @@ namespace FEMur.Models
             Elements = elements;
             Supports = supports;
             Loads = loads;
+            Result = null;
+            IsSolved = false;
         }
 
         public Model(Model other)
@@ -45,7 +57,10 @@ namespace FEMur.Models
             this.Elements = other.Elements;
             this.Supports = other.Supports;
             this.Loads = other.Loads;
+            this.Result = other.Result;
+            this.IsSolved = other.IsSolved;
         }
+
         public Model(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
@@ -53,7 +68,20 @@ namespace FEMur.Models
             Elements = (List<ElementBase>)info.GetValue("Elements", typeof(List<ElementBase>));
             Supports = (List<Support>)info.GetValue("Supports", typeof(List<Support>));
             Loads = (List<Load>)info.GetValue("Loads", typeof(List<Load>));
+            
+            // シリアライゼーション時の互換性のため、nullチェック
+            try
+            {
+                Result = (Result)info.GetValue("Result", typeof(Result));
+                IsSolved = info.GetBoolean("IsSolved");
+            }
+            catch
+            {
+                Result = null;
+                IsSolved = false;
+            }
         }
+
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
@@ -61,8 +89,21 @@ namespace FEMur.Models
             info.AddValue("Elements", Elements);
             info.AddValue("Supports", Supports);
             info.AddValue("Loads", Loads);
+            info.AddValue("Result", Result);
+            info.AddValue("IsSolved", IsSolved);
         }
-        public override Object Clone() => this.MemberwiseClone();
+
+        public override Object Clone()
+        {
+            var cloned = (Model)this.MemberwiseClone();
+            // Deep copy for collections
+            cloned.Nodes = new List<Node>(this.Nodes);
+            cloned.Elements = new List<ElementBase>(this.Elements);
+            cloned.Supports = new List<Support>(this.Supports);
+            cloned.Loads = new List<Load>(this.Loads);
+            return cloned;
+        }
+
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
@@ -71,8 +112,10 @@ namespace FEMur.Models
             sb.AppendLine($"Elements: {Elements.Count}");
             sb.AppendLine($"Supports: {Supports.Count}");
             sb.AppendLine($"Loads: {Loads.Count}");
+            sb.AppendLine($"IsSolved: {IsSolved}");
             return sb.ToString();
         }
+
         public bool Equals(Model other)
         {
             if (other == null) return false;
@@ -81,7 +124,5 @@ namespace FEMur.Models
                    Supports.SequenceEqual(other.Supports) &&
                    Loads.SequenceEqual(other.Loads);
         }
-
-
     }
 }

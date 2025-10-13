@@ -2,7 +2,7 @@
 using Grasshopper.Kernel;
 using FEMur.CrossSections;
 
-namespace FEMur.GH.CrossSections
+namespace FEMurGH.CrossSections
 {
     /// <summary>
     /// H断面の CrossSection を生成するコンポーネント。

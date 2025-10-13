@@ -4,7 +4,7 @@ using System.Windows.Forms;
 using Grasshopper.Kernel;
 using FEMur.Materials;
 
-namespace FEMur.GH.Materials
+namespace FEMurGH.Materials
 {
     /// <summary>
     /// Material コンポーネント

@@ -7,19 +7,19 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace FEMur.Loads
 {
-    // 線要素に作用する等分布荷重（ローカル座標系）を表現
+    // 線要素に作用する等分布荷重(ローカル座標系)を表現
     public class ElementLoad : Load, ISerializable
     {
         // 対象要素ID
         public int ElementId { get; set; }
 
-        // ローカル座標系の等分布荷重 [N/mm]（x, y, z）
+        // ローカル座標系の等分布荷重 [N/mm](x, y, z)
         public Vector3 QLocal { get; set; }
 
-        // ローカル座標系の等分布ねじり [N*mm/mm]（mx など）。未使用なら(0,0,0)
+        // ローカル座標系の等分布ねじり [N*mm/mm](mx など)。未使用なら(0,0,0)
         public Vector3 MLocal { get; set; }
 
-        // ローカル荷重かどうか（現状 true のみを想定）
+        // ローカル荷重かどうか(現状 true のみを想定)
         public bool Local { get; set; } = true;
 
         public ElementLoad() { }
@@ -35,6 +35,30 @@ namespace FEMur.Loads
         public ElementLoad(int elementId, Vector3 qLocal, Vector3 mLocal, bool local = true)
         {
             ElementId = elementId;
+            QLocal = qLocal;
+            MLocal = mLocal;
+            Local = local;
+        }
+
+        // 追加: Element を直接渡せるコンストラクタ
+        public ElementLoad(ElementBase element, Vector3 qLocal)
+        {
+            if (element == null)
+                throw new ArgumentNullException(nameof(element));
+            
+            ElementId = element.Id;
+            QLocal = qLocal;
+            MLocal = new Vector3(0.0, 0.0, 0.0);
+            Local = true;
+        }
+
+        // 追加: Element を直接渡せるコンストラクタ (モーメント付き)
+        public ElementLoad(ElementBase element, Vector3 qLocal, Vector3 mLocal, bool local = true)
+        {
+            if (element == null)
+                throw new ArgumentNullException(nameof(element));
+            
+            ElementId = element.Id;
             QLocal = qLocal;
             MLocal = mLocal;
             Local = local;
@@ -58,7 +82,7 @@ namespace FEMur.Loads
             info.AddValue("Local", Local);
         }
 
-        // 一様分布荷重の等価節点荷重（ローカル座標系 12x1）を返す
+        // 一様分布荷重の等価節点荷重(ローカル座標系 12x1)を返す
         // DOF順: [uX1,uY1,uZ1,rX1,rY1,rZ1, uX2,uY2,uZ2,rX2,rY2,rZ2]
         public Vector<double> CalcEquivalentNodalLoadLocal(ElementBase element, System.Collections.Generic.List<Node> nodes)
         {
@@ -85,7 +109,7 @@ namespace FEMur.Loads
                 fe[6] += qx * L / 2.0;
             }
 
-            // 横方向一様分布 qy（ローカル+Y） -> Fy, Mz
+            // 横方向一様分布 qy(ローカル+Y) -> Fy, Mz
             if (System.Math.Abs(qy) > 0.0)
             {
                 fe[1] += qy * L / 2.0;                 // Fy1
@@ -94,7 +118,7 @@ namespace FEMur.Loads
                 fe[11] += -qy * L * L / 12.0;          // Mz2
             }
 
-            // 横方向一様分布 qz（ローカル+Z） -> Fz, My
+            // 横方向一様分布 qz(ローカル+Z) -> Fz, My
             if (System.Math.Abs(qz) > 0.0)
             {
                 fe[2] += qz * L / 2.0;                 // Fz1
@@ -103,7 +127,7 @@ namespace FEMur.Loads
                 fe[10] += qz * L * L / 12.0;           // My2
             }
 
-            // ねじり一様分布 mx（ローカル+X） -> Mx
+            // ねじり一様分布 mx(ローカル+X) -> Mx
             if (System.Math.Abs(mx) > 0.0)
             {
                 fe[3] += mx * L / 2.0;                 // Mx1

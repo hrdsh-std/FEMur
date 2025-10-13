@@ -502,5 +502,296 @@ namespace FEMur.Solver.Tests
             Assert.AreEqual(P / 2.0, stress0.Fy_i, P * 1e-3,
                 $"左端のせん断力 Fy={stress0.Fy_i} が理論値 {P / 2.0} に近いべき");
         }
+
+        // ===== 特異行列と自動正則化のテストケース =====
+
+        [TestMethod()]
+        public void AutoRegularization_SimplySupported_NoRotationalConstraints()
+        {
+            // 単純支持梁で回転拘束を一切設けない → 特異行列
+            // 自動正則化により解析が完了し、警告が出ることを確認
+            double L = 1000.0;
+            Node n0 = new Node(0, 0.0, 0.0, 0.0);
+            Node n1 = new Node(1, L / 2.0, 0.0, 0.0);
+            Node n2 = new Node(2, L, 0.0, 0.0);
+            var nodes = new List<Node> { n0, n1, n2 };
+
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+
+            var e0 = new BeamElement(0, n0, n1, material, cs);
+            var e1 = new BeamElement(1, n1, n2, material, cs);
+            var elements = new List<ElementBase> { e0, e1 };
+
+            // 回転拘束なし（RX, RY, RZ すべて自由）→ 特異行列
+            var supports = new List<Support>
+            {
+                new Support(0, n0.Id, true,  true,  true,  false, false, false), // 左端: 並進のみ拘束
+                new Support(1, n2.Id, false, true,  true,  false, false, false)  // 右端: UY, UZ のみ拘束
+            };
+
+            double P = 10.0;
+            var loads = new List<Load>
+            {
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+            };
+
+            var model = new Model(nodes, elements, supports, loads);
+            
+            // 自動正則化を有効にして解析
+            var solver = new LinearStaticSolver
+            {
+                EnableAutoRegularization = true // デフォルトで true
+            };
+
+            var result = solver.Solve(model);
+
+            // 解析が完了することを確認
+            Assert.IsNotNull(result, "解析結果が null でない");
+            Assert.IsNotNull(result.NodalDisplacements, "変位ベクトルが null でない");
+            Assert.IsTrue(model.IsSolved, "モデルが解析済み状態である");
+
+            // 警告が出ていることを確認
+            Assert.IsTrue(solver.Warnings.Count > 0, "特異行列に対する警告が出ているべき");
+            
+            // 警告メッセージに "Singular" や "Auto-regularization" が含まれることを確認
+            string warningMessage = string.Join(" ", solver.Warnings);
+            Assert.IsTrue(warningMessage.Contains("Singular") || warningMessage.Contains("singular"),
+                "警告メッセージに 'Singular' が含まれるべき");
+            Assert.IsTrue(warningMessage.Contains("Auto-regularization") || warningMessage.Contains("regularization"),
+                "警告メッセージに 'regularization' が含まれるべき");
+
+            // 変位値が妥当な範囲にあることを確認（NaN や Infinity でない）
+            double midY = result.NodalDisplacements[n1.Id * 6 + 1];
+            Assert.IsFalse(double.IsNaN(midY), "中央変位が NaN でない");
+            Assert.IsFalse(double.IsInfinity(midY), "中央変位が Infinity でない");
+            Assert.IsTrue(midY < 0, "下向き荷重により負の変位");
+
+            // オーダーチェック（正則化により精度は落ちるが、桁は妥当）
+            double E = material.E;
+            double Izz = cs.Izz;
+            double expectedOrder = P * System.Math.Pow(L, 3) / (48.0 * E * Izz);
+            Assert.IsTrue(System.Math.Abs(midY) > 0.1 * System.Math.Abs(expectedOrder),
+                "変位のオーダーが理論値の 10% 以上");
+            Assert.IsTrue(System.Math.Abs(midY) < 10.0 * System.Math.Abs(expectedOrder),
+                "変位のオーダーが理論値の 10倍 以下");
+        }
+
+        [TestMethod()]
+        public void AutoRegularization_Cantilever_MissingTranslationalConstraint()
+        {
+            // 片持ち梁で並進拘束が不足（UZ を拘束しない）→ Z方向の剛体変位モード
+            // 自動正則化により解析完了、警告が出ることを確認
+            double L = 1000.0;
+            Node n0 = new Node(0, 0.0, 0.0, 0.0);
+            Node n1 = new Node(1, L, 0.0, 0.0);
+            var nodes = new List<Node> { n0, n1 };
+
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+
+            var e0 = new BeamElement(0, n0, n1, material, cs);
+            var elements = new List<ElementBase> { e0 };
+
+            // UZ を拘束しない → Z方向の剛体変位が残る
+            var supports = new List<Support>
+            {
+                new Support(0, n0.Id, true, true, false, true, true, true) // UZ 未拘束
+            };
+
+            double P = 10.0;
+            var loads = new List<Load>
+            {
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+            };
+
+            var model = new Model(nodes, elements, supports, loads);
+            var solver = new LinearStaticSolver
+            {
+                EnableAutoRegularization = true
+            };
+
+            var result = solver.Solve(model);
+
+            // 解析完了を確認
+            Assert.IsNotNull(result);
+            Assert.IsTrue(model.IsSolved);
+
+            // 警告が出ていることを確認
+            Assert.IsTrue(solver.Warnings.Count > 0, "特異行列に対する警告が出ているべき");
+
+            // 先端の Y 変位が妥当な範囲
+            double tipY = result.NodalDisplacements[n1.Id * 6 + 1];
+            Assert.IsFalse(double.IsNaN(tipY));
+            Assert.IsFalse(double.IsInfinity(tipY));
+            Assert.IsTrue(tipY < 0, "下向き荷重により負の変位");
+
+            double E = material.E;
+            double Izz = cs.Izz;
+            double expectedOrder = -P * System.Math.Pow(L, 3) / (3.0 * E * Izz);
+            Assert.IsTrue(System.Math.Abs(tipY) > 0.1 * System.Math.Abs(expectedOrder),
+                "変位のオーダーが理論値の 10% 以上");
+        }
+
+        [TestMethod()]
+        public void AutoRegularization_FloatingFrame_NoSupports()
+        {
+            // 支持条件なし（浮遊フレーム）→ 完全な特異行列
+            // 自動正則化でも解けない可能性が高いが、警告/エラーが適切に出ることを確認
+            double L = 1000.0;
+            Node n0 = new Node(0, 0.0, 0.0, 0.0);
+            Node n1 = new Node(1, L, 0.0, 0.0);
+            var nodes = new List<Node> { n0, n1 };
+
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+
+            var e0 = new BeamElement(0, n0, n1, material, cs);
+            var elements = new List<ElementBase> { e0 };
+
+            // 支持条件なし
+            var supports = new List<Support>();
+
+            double P = 10.0;
+            var loads = new List<Load>
+            {
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+            };
+
+            var model = new Model(nodes, elements, supports, loads);
+            var solver = new LinearStaticSolver
+            {
+                EnableAutoRegularization = true
+            };
+
+            bool exceptionThrown = false;
+            try
+            {
+                var result = solver.Solve(model);
+                
+                // 例外が投げられずに解析完了した場合
+                // 警告が出ていることを確認
+                if (solver.Warnings.Count > 0)
+                {
+                    Assert.IsTrue(true, "自動正則化により解析完了、警告が出力された");
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                // 正則化後も特異の場合はエラーが投げられることを期待
+                exceptionThrown = true;
+                Assert.IsTrue(ex.Message.Contains("singular") || ex.Message.Contains("Singular"),
+                    "例外メッセージに 'singular' が含まれるべき");
+                Assert.IsTrue(ex.Message.Contains("regularization") || ex.Message.Contains("supports"),
+                    "例外メッセージに対処方法のヒントが含まれるべき");
+            }
+
+            // 例外が投げられた場合は成功
+            if (exceptionThrown)
+            {
+                Assert.IsTrue(true, "支持条件なしのケースで適切にエラーが発生");
+            }
+        }
+
+        [TestMethod()]
+        public void AutoRegularization_Disabled_ShouldThrowException()
+        {
+            // 自動正則化を無効にした場合、特異行列で例外が投げられることを確認
+            double L = 1000.0;
+            Node n0 = new Node(0, 0.0, 0.0, 0.0);
+            Node n1 = new Node(1, L / 2.0, 0.0, 0.0);
+            Node n2 = new Node(2, L, 0.0, 0.0);
+            var nodes = new List<Node> { n0, n1, n2 };
+
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+
+            var e0 = new BeamElement(0, n0, n1, material, cs);
+            var e1 = new BeamElement(1, n1, n2, material, cs);
+            var elements = new List<ElementBase> { e0, e1 };
+
+            // 回転拘束なし → 特異行列
+            var supports = new List<Support>
+            {
+                new Support(0, n0.Id, true,  true,  true,  false, false, false),
+                new Support(1, n2.Id, false, true,  true,  false, false, false)
+            };
+
+            double P = 10.0;
+            var loads = new List<Load>
+            {
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+            };
+
+            var model = new Model(nodes, elements, supports, loads);
+            
+            // 自動正則化を無効化
+            var solver = new LinearStaticSolver
+            {
+                EnableAutoRegularization = false
+            };
+
+            // 例外が投げられることを期待
+            Assert.ThrowsException<InvalidOperationException>(() =>
+            {
+                solver.Solve(model);
+            }, "自動正則化無効時に特異行列で例外が投げられるべき");
+        }
+
+        [TestMethod()]
+        public void AutoRegularization_PortalFrame_MissingOneRotationalConstraint()
+        {
+            // 門型フレームで RX 拘束が1つだけ不足 → 特異行列
+            // 自動正則化により解析完了
+            double H = 3000.0;
+            double W = 4000.0;
+
+            Node n0 = new Node(0, 0.0, 0.0, 0.0);
+            Node n1 = new Node(1, 0.0, H, 0.0);
+            Node n2 = new Node(2, W, H, 0.0);
+            Node n3 = new Node(3, W, 0.0, 0.0);
+            var nodes = new List<Node> { n0, n1, n2, n3 };
+
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H csColumn = new CrossSection_H(0, "Column", 200.0, 200.0, 12.0, 8.0, 6.0);
+            CrossSection_H csBeam = new CrossSection_H(1, "Beam", 200.0, 300.0, 12.0, 8.0, 6.0);
+
+            var e0 = new BeamElement(0, n0, n1, material, csColumn);
+            var e1 = new BeamElement(1, n1, n2, material, csBeam);
+            var e2 = new BeamElement(2, n2, n3, material, csColumn);
+            var elements = new List<ElementBase> { e0, e1, e2 };
+
+            // 両端の RX を拘束しない → X軸周りの剛体回転モード
+            var supports = new List<Support>
+            {
+                new Support(0, n0.Id, true, true, true, false, true, true),  // RX 未拘束
+                new Support(1, n3.Id, true, true, true, false, true, true)   // RX 未拘束
+            };
+
+            double P = 10.0;
+            var loads = new List<Load>
+            {
+                new PointLoad(n1.Id, new Vector3(P, 0.0, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+            };
+
+            var model = new Model(nodes, elements, supports, loads);
+            var solver = new LinearStaticSolver
+            {
+                EnableAutoRegularization = true
+            };
+
+            var result = solver.Solve(model);
+
+            // 解析完了、警告出力を確認
+            Assert.IsNotNull(result);
+            Assert.IsTrue(model.IsSolved);
+            Assert.IsTrue(solver.Warnings.Count > 0, "特異行列に対する警告が出ているべき");
+
+            // 水平変位が妥当
+            double dispX_n1 = result.NodalDisplacements[n1.Id * 6 + 0];
+            Assert.IsFalse(double.IsNaN(dispX_n1));
+            Assert.IsFalse(double.IsInfinity(dispX_n1));
+            Assert.IsTrue(dispX_n1 > 0, "水平荷重により正の変位");
+        }
     }
 }

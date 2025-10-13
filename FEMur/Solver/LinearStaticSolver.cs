@@ -15,16 +15,24 @@ namespace FEMur.Solver
     {
         protected int dof = 6;
 
-        // 正則化（既存）
+        // 正則化設定（既存の明示的制御用）
         public bool EnableRegularization { get; set; } = false;
         public double RotationalRegularizationFactor { get; set; } = 1e-9;
 
-        // 追加: 並進自由度の正則化
         public bool EnableTranslationalRegularization { get; set; } = false;
         public double TranslationalRegularizationFactor { get; set; } = 1e-10;
 
+        // 追加: 自動正則化の有効化（デフォルトtrue）
+        public bool EnableAutoRegularization { get; set; } = true;
+
+        // 追加: 解析結果の警告フラグ
+        public List<string> Warnings { get; private set; } = new List<string>();
+
         public override Result Solve(Model model)
         {
+            // 警告をクリア
+            Warnings.Clear();
+
             Matrix<double> globalK = AssembleGlobalStiffness(model);
             ApplySupportSprings(model, globalK);
 
@@ -37,11 +45,18 @@ namespace FEMur.Solver
                 ElementStresses = CalcElementStresses(model, displacements)
             };
 
+            // 追加: Modelに結果を格納
+            model.Result = result;
+            model.IsSolved = true;
+
             return result;
         }
 
         public Vector<double> solveDisp(Model model)
         {
+            // 警告をクリア
+            Warnings.Clear();
+
             Matrix<double> globalK = AssembleGlobalStiffness(model);
             ApplySupportSprings(model, globalK);
 
@@ -50,7 +65,7 @@ namespace FEMur.Solver
         }
 
         /// <summary>
-        /// 全要素の断面力（応力）を計算
+        /// 全要素の断面力(応力)を計算
         /// </summary>
         protected List<Results.ElementStress> CalcElementStresses(Model model, Vector<double> globalDisplacements)
         {
@@ -210,7 +225,7 @@ namespace FEMur.Solver
                 }
             }
 
-            // Kff に対する正則化（回転/並進）をここで適用
+            // 明示的な正則化が有効な場合は適用
             if (EnableRegularization)
             {
                 ApplyRotationalRegularization(kff, freeDof, model);
@@ -220,7 +235,8 @@ namespace FEMur.Solver
                 ApplyTranslationalRegularization(kff, freeDof, model);
             }
 
-            // ランク検査（SVD）
+            // ランク検査(SVD)
+            bool isSingular = false;
             if (freeDof.Length > 0)
             {
                 var svd = kff.Svd(true);
@@ -228,8 +244,10 @@ namespace FEMur.Solver
                 double smax = s.AbsoluteMaximum();
                 double tol = Math.Max(kff.RowCount, kff.ColumnCount) * 1e-16 * (smax <= 0 ? 1.0 : smax);
                 int rank = s.Count(v => v > tol);
+                
                 if (rank < kff.RowCount)
                 {
+                    isSingular = true;
                     var V = svd.VT.Transpose();
                     var nullModes = new List<string>();
                     int modesToReport = Math.Min(6, kff.RowCount - rank);
@@ -245,11 +263,43 @@ namespace FEMur.Solver
                         nullModes.Add(string.Join(", ", top));
                     }
 
-                    throw new InvalidOperationException(
-                        $"Stiffness submatrix is singular or ill-conditioned. " +
-                        $"rank={rank}, n={kff.RowCount}. " +
-                        $"Likely free rigid-body modes around: [{string.Join("] | [", nullModes)}]. " +
-                        $"Adjust supports or enable regularization (rotational/translational).");
+                    // 自動正則化が有効で、まだ正則化していない場合
+                    if (EnableAutoRegularization && !EnableRegularization && !EnableTranslationalRegularization)
+                    {
+                        string warningMsg = $"Singular stiffness matrix detected (rank={rank}, n={kff.RowCount}). " +
+                            $"Auto-regularization applied. Free modes around: [{string.Join("] | [", nullModes)}]. " +
+                            $"Consider adding appropriate supports or constraints.";
+                        Warnings.Add(warningMsg);
+
+                        // 自動正則化を適用
+                        ApplyRotationalRegularization(kff, freeDof, model);
+                        ApplyTranslationalRegularization(kff, freeDof, model);
+
+                        // 正則化後に再度ランク検査
+                        var svd2 = kff.Svd(true);
+                        var s2 = svd2.S;
+                        double smax2 = s2.AbsoluteMaximum();
+                        double tol2 = Math.Max(kff.RowCount, kff.ColumnCount) * 1e-16 * (smax2 <= 0 ? 1.0 : smax2);
+                        int rank2 = s2.Count(v => v > tol2);
+
+                        if (rank2 < kff.RowCount)
+                        {
+                            // 正則化後も特異の場合はエラー
+                            throw new InvalidOperationException(
+                                $"Stiffness matrix remains singular after auto-regularization (rank={rank2}, n={kff.RowCount}). " +
+                                $"Free modes: [{string.Join("] | [", nullModes)}]. " +
+                                $"Please add proper supports or enable manual regularization with higher factors.");
+                        }
+                    }
+                    else if (!EnableAutoRegularization)
+                    {
+                        // 自動正則化が無効の場合はエラーを投げる
+                        throw new InvalidOperationException(
+                            $"Stiffness submatrix is singular or ill-conditioned. " +
+                            $"rank={rank}, n={kff.RowCount}. " +
+                            $"Likely free rigid-body modes around: [{string.Join("] | [", nullModes)}]. " +
+                            $"Adjust supports or enable regularization (rotational/translational).");
+                    }
                 }
             }
 
@@ -288,7 +338,7 @@ namespace FEMur.Solver
             }
         }
 
-        // 回転自由度の正則化（対象: kff）
+        // 回転自由度の正則化(対象: kff)
         private void ApplyRotationalRegularization(Matrix<double> kff, int[] freeDof, Model model)
         {
             double kref = ComputeReferenceRotationalStiffness(model);
@@ -305,7 +355,7 @@ namespace FEMur.Solver
             }
         }
 
-        // 並進自由度の正則化（対象: kff）
+        // 並進自由度の正則化(対象: kff)
         private void ApplyTranslationalRegularization(Matrix<double> kff, int[] freeDof, Model model)
         {
             double kref = ComputeReferenceTranslationalStiffness(model);
