@@ -9,10 +9,10 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace FEMurGH.Results
 {
-    public class ResultView : GH_Component
+    public class ResultViewDisp : GH_Component
     {
-        public ResultView()
-          : base("ResultView(FEMur)", "ResultView",
+        public ResultViewDisp()
+          : base("ResultViewDisp(FEMur)", "ResultViewDisp",
               "Visualize FEMur analysis results in Rhino space (deformed model)",
               "FEMur", "Results")
         {
