@@ -29,58 +29,85 @@ namespace FEMurGH.Results
             if (forceType == SectionForceView.SectionForceType.None)
                 return SectionForcePreview.Empty;
 
-            // 検索用辞書
             var nodeById = model.Nodes.ToDictionary(n => n.Id, n => n);
             var elemById = model.Elements.ToDictionary(e => e.Id, e => e);
 
-            // 表示色（種類ごとに固定色）
             Color color = ForceColor(forceType);
 
             foreach (var es in model.Result.ElementStresses)
             {
-                ElementBase elem;
-                if (!elemById.TryGetValue(es.ElementId, out elem))
+                if (!elemById.TryGetValue(es.ElementId, out ElementBase elem))
                     continue;
 
                 var lineElem = elem as LineElement;
                 if (lineElem == null || lineElem.NodeIds == null || lineElem.NodeIds.Count < 2)
                     continue;
 
-                Node n0, n1;
-                if (!nodeById.TryGetValue(lineElem.NodeIds[0], out n0)) continue;
-                if (!nodeById.TryGetValue(lineElem.NodeIds[1], out n1)) continue;
+                if (!nodeById.TryGetValue(lineElem.NodeIds[0], out Node n0)) continue;
+                if (!nodeById.TryGetValue(lineElem.NodeIds[1], out Node n1)) continue;
 
                 var p0 = ToRhinoPoint(n0.Position);
                 var p1 = ToRhinoPoint(n1.Position);
 
-                // 要素座標系の近傍直交方向（図式の高さ方向）を決める
-                Vector3d ex = p1 - p0;
-                if (!ex.Unitize() || ex.IsTiny())
-                    continue;
-
-                Vector3d up = Vector3d.ZAxis;
-                if (Math.Abs(Vector3d.Multiply(ex, up)) > 0.99) up = Vector3d.YAxis; // ほぼ平行なら別軸
-                Vector3d ey = Vector3d.CrossProduct(up, ex);
-                if (!ey.Unitize() || ey.IsTiny())
+                // 局所座標系を取得（要素から）
+                double[] ex, ey, ez;
+                Vector3d exVec, eyVec, ezVec;
+                
+                if (elem.TryGetLocalCoordinateSystem(out ex, out ey, out ez))
                 {
-                    up = Vector3d.XAxis;
-                    ey = Vector3d.CrossProduct(up, ex);
-                    if (!ey.Unitize() || ey.IsTiny()) continue;
+                    // 要素が局所座標系を保持している場合
+                    exVec = new Vector3d(ex[0], ex[1], ex[2]);
+                    eyVec = new Vector3d(ey[0], ey[1], ey[2]);
+                    ezVec = new Vector3d(ez[0], ez[1], ez[2]);
+                }
+                else
+                {
+                    // フォールバック: 部材軸から局所座標系を構築
+                    exVec = p1 - p0;
+                    if (!exVec.Unitize() || exVec.IsTiny())
+                        continue;
+
+                    Vector3d up = Vector3d.ZAxis;
+                    if (Math.Abs(Vector3d.Multiply(exVec, up)) > 0.99) up = Vector3d.YAxis;
+
+                    eyVec = Vector3d.CrossProduct(up, exVec);
+                    if (!eyVec.Unitize() || eyVec.IsTiny())
+                    {
+                        up = Vector3d.XAxis;
+                        eyVec = Vector3d.CrossProduct(up, exVec);
+                        if (!eyVec.Unitize() || eyVec.IsTiny()) continue;
+                    }
+                    ezVec = Vector3d.CrossProduct(exVec, eyVec);
+                    if (!ezVec.Unitize() || ezVec.IsTiny()) continue;
                 }
 
-                // i/j端の値
-                double vi, vj;
-                if (!TryPickForce(forceType, es, out vi, out vj))
+                // 応力値 i/j
+                if (!TryPickForce(forceType, es, out double vi, out double vj))
                     continue;
 
-                // 図式スケール
+                // 図式オフセット方向:
+                // 「部材軸から時計回りに90°」= 局所右手系に対して -ey 側を正とする。
+                // Fz/Mz を選んだ場合は Z面でのCW（-ez）を用いる。
+                Vector3d n = -eyVec;
+                switch (forceType)
+                {
+                    case SectionForceView.SectionForceType.Fz:
+                    case SectionForceView.SectionForceType.Mz:
+                        n = -ezVec;
+                        break;
+                    default:
+                        n = -eyVec;
+                        break;
+                }
+
+                // スケール適用
                 double hi = vi * scale;
                 double hj = vj * scale;
 
-                // 図式ポリライン（基準線からey方向へオフセット）
+                // 図式ポリライン
                 var poly = new Polyline(2);
-                poly.Add(p0 + ey * hi);
-                poly.Add(p1 + ey * hj);
+                poly.Add(p0 + n * hi);
+                poly.Add(p1 + n * hj);
 
                 preview.Diagrams.Add(new DiagramLine
                 {
@@ -91,17 +118,16 @@ namespace FEMurGH.Results
 
                 if (showFilled)
                 {
-                    // 基準線(要素線)と図式の間を塗りつぶし
-                    var m = BuildQuadMesh(p0, p1, p0 + ey * hi, p1 + ey * hj, color);
+                    var m = BuildQuadMesh(p0, p1, p0 + n * hi, p1 + n * hj, color);
                     preview.FilledMeshes.Add(m);
                 }
 
                 if (showNumbers)
                 {
-                    // 端部の数値ラベル
-                    var offSmall = 0.03; // わずかに離す
-                    var p0lbl = p0 + ey * (hi + offSmall * ex.Length);
-                    var p1lbl = p1 + ey * (hj + offSmall * ex.Length);
+                    // 少し法線方向に離して重なり回避
+                    var offSmall = 0.03;
+                    var p0lbl = p0 + n * (hi + offSmall);
+                    var p1lbl = p1 + n * (hj + offSmall);
 
                     preview.Labels.Add(new ForceLabel
                     {
@@ -125,7 +151,6 @@ namespace FEMurGH.Results
 
         private static string FormatValue(double v)
         {
-            // 少数2桁、指数が大きい場合は簡易表記
             if (Math.Abs(v) >= 1e6 || (Math.Abs(v) > 0 && Math.Abs(v) < 1e-2))
                 return v.ToString("0.###E+0");
             return v.ToString("0.##");
@@ -184,7 +209,7 @@ namespace FEMurGH.Results
             mesh.Normals.ComputeNormals();
             mesh.Compact();
 
-            var mat = new DisplayMaterial(color, 0.6); // 透過少し
+            var mat = new DisplayMaterial(color, 0.6);
             return new FilledDiagram
             {
                 Mesh = mesh,

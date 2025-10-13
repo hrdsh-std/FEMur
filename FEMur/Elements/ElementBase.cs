@@ -30,6 +30,12 @@ namespace FEMur.Elements
         internal Matrix<double> LocalDamping { get; set; }
         internal Matrix<double> GlobalDamping { get; set; }
 
+        // 局所座標系の基底ベクトル（グローバル座標系での表現）
+        // ex: 部材軸方向、ey: 局所Y軸、ez: 局所Z軸
+        public double[] LocalAxisX { get; protected set; } = null;
+        public double[] LocalAxisY { get; protected set; } = null;
+        public double[] LocalAxisZ { get; protected set; } = null;
+
         protected ElementBase()
         {
         }
@@ -50,9 +56,22 @@ namespace FEMur.Elements
 
         internal abstract Matrix<double> CalcTransformationMatrix(List<Node> nodes);
 
+        /// <summary>
+        /// 局所座標系の基底ベクトル（ex, ey, ez）を取得
+        /// </summary>
+        /// <param name="ex">部材軸方向の単位ベクトル（出力）</param>
+        /// <param name="ey">局所Y軸の単位ベクトル（出力）</param>
+        /// <param name="ez">局所Z軸の単位ベクトル（出力）</param>
+        /// <returns>局所座標系が計算済みの場合true</returns>
+        public bool TryGetLocalCoordinateSystem(out double[] ex, out double[] ey, out double[] ez)
+        {
+            ex = LocalAxisX;
+            ey = LocalAxisY;
+            ez = LocalAxisZ;
+            return ex != null && ey != null && ez != null;
+        }
+
         //Tostringの実装を強制
         public abstract override string ToString();
-
-
     }
 }

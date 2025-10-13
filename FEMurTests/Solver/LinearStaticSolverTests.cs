@@ -209,7 +209,10 @@ namespace FEMur.Solver.Tests
                 EnableTranslationalRegularization = false,
                 TranslationalRegularizationFactor = 1e-10
             };
-            var disp = solver.solveDisp(model);
+
+            var results = solver.Solve(model);
+            var disp = results.NodalDisplacements;
+            var reactions = results.ElementStresses;
 
             // 理論値（オイラー梁）: δ = -P L^3 / (3 E Izz)
             double E = material.E;
@@ -219,6 +222,14 @@ namespace FEMur.Solver.Tests
             // 先端節点の UY を検証
             int tipId = nodes[nodeCount - 1].Id;
             double tipY = disp[tipId * 6 + 1];
+
+            //元端の応力を検証
+            int baseElementId = 0;
+            var baseStress = reactions[baseElementId];
+            double M0 = P * L; // 根元の曲げモーメント
+            double tolStress = 1e-9 + 1e-6 * System.Math.Abs(M0);
+
+            Assert.AreEqual(M0, baseStress.Mz_i, tolStress);
 
             double tol = 1e-9 + 1e-6 * System.Math.Abs(expected);
             Assert.AreEqual(expected, tipY, tol);

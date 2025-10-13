@@ -184,6 +184,11 @@ namespace FEMur.Elements
             double eyn = Math.Sqrt(eyx * eyx + eyy * eyy + eyz * eyz);
             eyx /= eyn; eyy /= eyn; eyz /= eyn;
 
+            // 局所座標系の基底ベクトルを保存（グローバル座標系での表現）
+            LocalAxisX = new double[] { exx, exy, exz };
+            LocalAxisY = new double[] { eyx, eyy, eyz };
+            LocalAxisZ = new double[] { ezx, ezy, ezz };
+
             // グローバル→ローカル変換行列 R（行に ex, ey, ez を配置）
             var R = Matrix<double>.Build.Dense(3, 3);
             R[0, 0] = exx; R[0, 1] = exy; R[0, 2] = exz;  // 行0: ex
