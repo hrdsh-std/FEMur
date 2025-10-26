@@ -9,9 +9,9 @@ namespace FEMurGH.CrossSections
     /// 入力: Id, Name, B, H, t_f, t_w, r
     /// 出力: CrossSection_Beam（実体は CrossSection_H）
     /// </summary>
-    public class CrossSection_Beam_H : GH_Component
+    public class CrossSection_H : GH_Component
     {
-        public CrossSection_Beam_H()
+        public CrossSection_H()
           : base("CrossSection H (FEMur)", "XSec-H",
               "Create H-section (CrossSection_H) for beam elements.",
               "FEMur", "Model")
@@ -53,7 +53,7 @@ namespace FEMurGH.CrossSections
             DA.GetData(6, ref r);
 
             // CrossSection_H は内部で A, Iyy, Izz, J, iy, iz を計算
-            CrossSection_Beam xsec = new CrossSection_H(id, name ?? "H-Section", B, H, tf, tw, r);
+            CrossSection_Beam xsec = new FEMur.CrossSections.CrossSection_H(id, name ?? "H-Section", B, H, tf, tw, r);
 
             DA.SetData(0, xsec);
         }

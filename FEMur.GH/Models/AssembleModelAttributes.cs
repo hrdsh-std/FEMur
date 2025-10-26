@@ -11,7 +11,7 @@ namespace FEMurGH.Models
 {
     /// <summary>
     /// AssembleModel コンポーネントのカスタムUI属性
-    /// 展開可能なタブメニューでチェックボックスを表示
+    /// 折り畳み可能なタブメニューでチェックボックスを表示
     /// </summary>
     public class AssembleModelAttributes : GH_ComponentAttributes
     {
@@ -33,7 +33,7 @@ namespace FEMurGH.Models
 
         private const float LINE_HEIGHT_NORMAL = 14f;
 
-        private const float MENU_CONTENT_HEIGHT = 62f; // 4 checkboxes with padding
+        private const float MENU_CONTENT_HEIGHT = 90f; // 6 checkboxes with padding
 
         private static readonly Color TAB_BACKGROUND_COLOR = Color.FromArgb(80, 80, 80);
         private static readonly Color CONTROL_FILL_COLOR = Color.FromArgb(80, 80, 80);
@@ -51,6 +51,8 @@ namespace FEMurGH.Models
         private RectangleF elementIdCheckBox;
         private RectangleF loadCheckBox;
         private RectangleF supportCheckBox;
+        private RectangleF localAxisCheckBox;
+        private RectangleF crossSectionCheckBox;
 
         private bool displayExpanded = false;
 
@@ -99,6 +101,12 @@ namespace FEMurGH.Models
                 currentY += LINE_HEIGHT_NORMAL;
 
                 supportCheckBox = CreateControlRect(rightPosition, currentY);
+                currentY += LINE_HEIGHT_NORMAL;
+
+                localAxisCheckBox = CreateControlRect(rightPosition, currentY);
+                currentY += LINE_HEIGHT_NORMAL;
+
+                crossSectionCheckBox = CreateControlRect(rightPosition, currentY);
             }
         }
 
@@ -178,6 +186,12 @@ namespace FEMurGH.Models
 
                 graphics.DrawString("Support", font, textBrush, leftMargin, supportCheckBox.Top);
                 DrawCheckBox(graphics, supportCheckBox, Cmp.ShowSupport);
+
+                graphics.DrawString("LocalAxis", font, textBrush, leftMargin, localAxisCheckBox.Top);
+                DrawCheckBox(graphics, localAxisCheckBox, Cmp.ShowLocalAxis);
+
+                graphics.DrawString("CrossSection", font, textBrush, leftMargin, crossSectionCheckBox.Top);
+                DrawCheckBox(graphics, crossSectionCheckBox, Cmp.ShowCrossSection);
             }
         }
 
@@ -232,6 +246,12 @@ namespace FEMurGH.Models
                         return GH_ObjectResponse.Handled;
 
                     if (HandleCheckBoxClick(supportCheckBox, e.CanvasLocation, () => Cmp.ShowSupport, v => Cmp.ShowSupport = v))
+                        return GH_ObjectResponse.Handled;
+
+                    if (HandleCheckBoxClick(localAxisCheckBox, e.CanvasLocation, () => Cmp.ShowLocalAxis, v => Cmp.ShowLocalAxis = v))
+                        return GH_ObjectResponse.Handled;
+
+                    if (HandleCheckBoxClick(crossSectionCheckBox, e.CanvasLocation, () => Cmp.ShowCrossSection, v => Cmp.ShowCrossSection = v))
                         return GH_ObjectResponse.Handled;
                 }
             }

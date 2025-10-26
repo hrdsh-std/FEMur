@@ -9,6 +9,7 @@ using FEMur.Elements;
 using FEMur.Supports;
 using FEMur.Loads;
 using FEMur.Models;
+using FEMur.CrossSections;
 
 namespace FEMurGH.Models
 {
@@ -19,11 +20,17 @@ namespace FEMurGH.Models
         public bool ShowElementId { get; set; } = false;
         public bool ShowLoad { get; set; } = false;
         public bool ShowSupport { get; set; } = false;
+        public bool ShowLocalAxis { get; set; } = false;
+        public bool ShowCrossSection { get; set; } = false;
+        public double LocalAxisScale { get; set; } = 0.3;
 
         // キャッシュ
         private Model _cachedModel = null;
         private Dictionary<int, Point3d> _nodePositions = new Dictionary<int, Point3d>();
         private Dictionary<int, Point3d> _elementCenters = new Dictionary<int, Point3d>();
+        private List<LocalAxisArrow> _localAxisArrows = new List<LocalAxisArrow>();
+        private List<Brep> _crossSectionBreps = new List<Brep>();
+        private List<Line> _elementLines = new List<Line>();
 
         /// <summary>
         /// Initializes a new instance of the AssembleModel class.
@@ -44,7 +51,7 @@ namespace FEMurGH.Models
             pManager.AddGenericParameter("Elements", "E", "FEMur Elements (List<FEMur.Elements.ElementBase>)", GH_ParamAccess.list);
             pManager.AddGenericParameter("Supports", "S", "FEMur Supports (List<FEMur.Supports.Support>)", GH_ParamAccess.list);
             pManager.AddGenericParameter("Loads", "L", "FEMur Loads (List<FEMur.Loads.Load>)", GH_ParamAccess.list);
-            
+
             // Supports と Loads はオプショナル(空リストでも解析可能)
             pManager[2].Optional = true;
             pManager[3].Optional = true;
@@ -92,6 +99,29 @@ namespace FEMurGH.Models
             // 表示用の位置情報をキャッシュ
             CachePositions(nodes, elements);
 
+            // 要素の線材モデルを生成（常に表示)
+            GenerateElementLines(elements, nodes);
+
+            // 局所座標系の矢印を生成
+            if (ShowLocalAxis)
+            {
+                GenerateLocalAxisArrows(elements, nodes);
+            }
+            else
+            {
+                _localAxisArrows.Clear();
+            }
+
+            // 断面形状の3Dモデルを生成
+            if (ShowCrossSection)
+            {
+                GenerateCrossSectionBreps(elements, nodes);
+            }
+            else
+            {
+                _crossSectionBreps.Clear();
+            }
+
             DA.SetData(0, model);
         }
 
@@ -132,6 +162,330 @@ namespace FEMurGH.Models
             }
         }
 
+        /// <summary>
+        /// 要素の線材モデルを生成（常に表示）
+        /// </summary>
+        private void GenerateElementLines(List<ElementBase> elements, List<Node> nodes)
+        {
+            _elementLines.Clear();
+
+            var nodeById = nodes.ToDictionary(n => n.Id, n => n);
+
+            foreach (var elem in elements)
+            {
+                if (elem.NodeIds == null || elem.NodeIds.Count < 2)
+                    continue;
+
+                // LineElement（BeamElement等）のみ対応
+                if (!(elem is LineElement))
+                    continue;
+
+                // ノード取得
+                if (!nodeById.TryGetValue(elem.NodeIds[0], out Node n0)) continue;
+                if (!nodeById.TryGetValue(elem.NodeIds[1], out Node n1)) continue;
+
+                var p0 = new Point3d(n0.Position.X, n0.Position.Y, n0.Position.Z);
+                var p1 = new Point3d(n1.Position.X, n1.Position.Y, n1.Position.Z);
+
+                _elementLines.Add(new Line(p0, p1));
+            }
+        }
+
+        /// <summary>
+        /// 局所座標系の矢印を生成
+        /// </summary>
+        private void GenerateLocalAxisArrows(List<ElementBase> elements, List<Node> nodes)
+        {
+            _localAxisArrows.Clear();
+
+            var nodeById = nodes.ToDictionary(n => n.Id, n => n);
+
+            foreach (var elem in elements)
+            {
+                if (elem.NodeIds == null || elem.NodeIds.Count < 2)
+                    continue;
+
+                // 要素の中心位置を計算
+                if (!nodeById.TryGetValue(elem.NodeIds[0], out Node n0)) continue;
+                if (!nodeById.TryGetValue(elem.NodeIds[1], out Node n1)) continue;
+
+                var p0 = new Point3d(n0.Position.X, n0.Position.Y, n0.Position.Z);
+                var p1 = new Point3d(n1.Position.X, n1.Position.Y, n1.Position.Z);
+                var center = (p0 + p1) * 0.5;
+
+                // 局所座標系を取得または計算
+                double[] ex, ey, ez;
+                if (!elem.TryGetLocalCoordinateSystem(out ex, out ey, out ez))
+                {
+                    // 未計算の場合は計算
+                    elem.CalcLocalAxis(new List<Node> { n0, n1 });
+                    if (!elem.TryGetLocalCoordinateSystem(out ex, out ey, out ez))
+                    {
+                        continue;
+                    }
+                }
+
+                // 矢印の長さ（要素長の一定割合）
+                double elemLength = p0.DistanceTo(p1);
+                double arrowLength = elemLength * LocalAxisScale;
+
+                // 局所X軸の矢印（赤）
+                var exVec = new Vector3d(ex[0], ex[1], ex[2]) * arrowLength;
+                _localAxisArrows.Add(new LocalAxisArrow
+                {
+                    Start = center,
+                    End = center + exVec,
+                    Color = Color.Red,
+                    Label = "X"
+                });
+
+                // 局所Y軸の矢印（緑）
+                var eyVec = new Vector3d(ey[0], ey[1], ey[2]) * arrowLength;
+                _localAxisArrows.Add(new LocalAxisArrow
+                {
+                    Start = center,
+                    End = center + eyVec,
+                    Color = Color.Green,
+                    Label = "Y"
+                });
+
+                // 局所Z軸の矢印（青）
+                var ezVec = new Vector3d(ez[0], ez[1], ez[2]) * arrowLength;
+                _localAxisArrows.Add(new LocalAxisArrow
+                {
+                    Start = center,
+                    End = center + ezVec,
+                    Color = Color.Blue,
+                    Label = "Z"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 断面形状の3Dモデルを生成
+        /// </summary>
+        private void GenerateCrossSectionBreps(List<ElementBase> elements, List<Node> nodes)
+        {
+            _crossSectionBreps.Clear();
+
+            var nodeById = nodes.ToDictionary(n => n.Id, n => n);
+
+            foreach (var elem in elements)
+            {
+                if (elem.NodeIds == null || elem.NodeIds.Count < 2)
+                    continue;
+
+                // LineElement（BeamElement等）のみ対応
+                if (!(elem is LineElement))
+                    continue;
+
+                // 断面情報を取得
+                var crossSection = elem.CrossSection as CrossSection_Beam;
+                if (crossSection == null)
+                    continue;
+
+                // ノード取得
+                if (!nodeById.TryGetValue(elem.NodeIds[0], out Node n0)) continue;
+                if (!nodeById.TryGetValue(elem.NodeIds[1], out Node n1)) continue;
+
+                var p0 = new Point3d(n0.Position.X, n0.Position.Y, n0.Position.Z);
+                var p1 = new Point3d(n1.Position.X, n1.Position.Y, n1.Position.Z);
+
+                // 局所座標系を取得または計算
+                double[] ex, ey, ez;
+                if (!elem.TryGetLocalCoordinateSystem(out ex, out ey, out ez))
+                {
+                    elem.CalcLocalAxis(new List<Node> { n0, n1 });
+                    if (!elem.TryGetLocalCoordinateSystem(out ex, out ey, out ez))
+                    {
+                        continue;
+                    }
+                }
+
+                // 断面曲線を生成
+                Curve sectionCurve = CreateCrossSectionCurve(crossSection, p0, ey, ez);
+                if (sectionCurve == null)
+                    continue;
+
+                // スイープ用のレール（部材軸線）
+                var rail = new LineCurve(p0, p1);
+
+                // スイープでBrepを生成
+                var sweepBreps = Brep.CreateFromSweep(rail, sectionCurve, false, Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance);
+                if (sweepBreps != null && sweepBreps.Length > 0)
+                {
+                    foreach (var brep in sweepBreps)
+                    {
+                        if (brep != null && brep.IsValid)
+                        {
+                            _crossSectionBreps.Add(brep);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 断面形状の曲線を生成（局所座標系に配置）
+        /// </summary>
+        private Curve CreateCrossSectionCurve(CrossSection_Beam cs, Point3d origin, double[] localY, double[] localZ)
+        {
+            // 局所Y軸とZ軸のベクトル
+            Vector3d yVec = new Vector3d(localY[0], localY[1], localY[2]);
+            Vector3d zVec = new Vector3d(localZ[0], localZ[1], localZ[2]);
+
+            // 断面の種類に応じて形状を生成
+            if (cs is CrossSection_Box boxSection)
+            {
+                return CreateBoxSectionCurve(origin, yVec, zVec, boxSection);
+            }
+            else if (cs is CrossSection_H hSection)
+            {
+                return CreateHSectionCurve(origin, yVec, zVec, hSection);
+            }
+            else if (cs is CrossSection_Circle circle)
+            {
+                return CreateCircleCurve(origin, yVec, zVec, circle);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 円形断面曲線を生成（中空）
+        /// </summary>
+        private Curve CreateCircleCurve(Point3d origin, Vector3d yVec, Vector3d zVec, CrossSection_Circle circle)
+        {
+            // 局所Y-Z平面上に円を作成
+            var xVec = Vector3d.CrossProduct(yVec, zVec);
+            var plane = new Plane(origin, xVec);
+
+            double outerRadius = circle.D / 2.0;
+            double innerRadius = (circle.D - 2 * circle.t) / 2.0;
+
+            // 外側の円
+            var outerCircle = new Circle(plane, outerRadius);
+            var outerCurve = outerCircle.ToNurbsCurve();
+
+            // 内側の円（厚みがある場合）
+            if (innerRadius > 0 && innerRadius < outerRadius)
+            {
+                var innerCircle = new Circle(plane, innerRadius);
+                var innerCurve = innerCircle.ToNurbsCurve();
+
+                // 外側と内側の曲線を結合して中空断面を作成
+                var curves = new List<Curve> { outerCurve, innerCurve };
+                var joinedCurves = Curve.JoinCurves(curves, Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance, true);
+
+                if (joinedCurves != null && joinedCurves.Length > 0)
+                {
+                    return joinedCurves[0];
+                }
+            }
+
+            // 厚みが大きすぎて内側が作れない場合は外側のみ
+            return outerCurve;
+        }
+
+        /// <summary>
+        /// 角形鋼管断面曲線を生成（中空の矩形）
+        /// </summary>
+        private Curve CreateBoxSectionCurve(Point3d origin, Vector3d yVec, Vector3d zVec, CrossSection_Box box)
+        {
+            double B = box.B;  // 幅
+            double H = box.H;  // 高さ
+            double t = box.t;  // 板厚
+
+            double halfB = B / 2.0;
+            double halfH = H / 2.0;
+
+            // 外側の矩形
+            var outerP1 = origin - yVec * halfH - zVec * halfB;
+            var outerP2 = origin - yVec * halfH + zVec * halfB;
+            var outerP3 = origin + yVec * halfH + zVec * halfB;
+            var outerP4 = origin + yVec * halfH - zVec * halfB;
+
+            var outerPolyline = new Polyline(new[] { outerP1, outerP2, outerP3, outerP4, outerP1 });
+            var outerCurve = outerPolyline.ToNurbsCurve();
+
+            // 内側の矩形（板厚分小さい）
+            double innerHalfB = halfB - t;
+            double innerHalfH = halfH - t;
+
+            if (innerHalfB > 0 && innerHalfH > 0)
+            {
+                var innerP1 = origin - yVec * innerHalfH - zVec * innerHalfB;
+                var innerP2 = origin - yVec * innerHalfH + zVec * innerHalfB;
+                var innerP3 = origin + yVec * innerHalfH + zVec * innerHalfB;
+                var innerP4 = origin + yVec * innerHalfH - zVec * innerHalfB;
+
+                var innerPolyline = new Polyline(new[] { innerP1, innerP2, innerP3, innerP4, innerP1 });
+                var innerCurve = innerPolyline.ToNurbsCurve();
+
+                // 外側と内側の曲線を結合して中空断面を作成
+                var curves = new List<Curve> { outerCurve, innerCurve };
+                var joinedCurves = Curve.JoinCurves(curves, Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance, true);
+                
+                if (joinedCurves != null && joinedCurves.Length > 0)
+                {
+                    return joinedCurves[0];
+                }
+            }
+
+            // 板厚が大きすぎて内側が作れない場合は外側のみ
+            return outerCurve;
+        }
+
+        /// <summary>
+        /// H形鋼断面曲線を生成
+        /// </summary>
+        private Curve CreateHSectionCurve(Point3d origin, Vector3d yVec, Vector3d zVec, CrossSection_H h)
+        {
+            double H = h.H;
+            double B = h.B;
+            double tw = h.t_w;
+            double tf = h.t_f;
+
+            // H形鋼の輪郭（12点）
+            double halfH = H / 2.0;
+            double halfB = B / 2.0;
+            double halfTw = tw / 2.0;
+            double innerY = halfH - tf;
+
+            var points = new List<Point3d>
+            {
+                // 下フランジ下端左
+                origin - yVec * halfH - zVec * halfB,
+                // 下フランジ下端右
+                origin - yVec * halfH + zVec * halfB,
+                // 下フランジ上端右
+                origin - yVec * innerY + zVec * halfB,
+                // ウェブ右
+                origin - yVec * innerY + zVec * halfTw,
+                // ウェブ右上
+                origin + yVec * innerY + zVec * halfTw,
+                // 上フランジ下端右
+                origin + yVec * innerY + zVec * halfB,
+                // 上フランジ上端右
+                origin + yVec * halfH + zVec * halfB,
+                // 上フランジ上端左
+                origin + yVec * halfH - zVec * halfB,
+                // 上フランジ下端左
+                origin + yVec * innerY - zVec * halfB,
+                // ウェブ左上
+                origin + yVec * innerY - zVec * halfTw,
+                // ウェブ左下
+                origin - yVec * innerY - zVec * halfTw,
+                // 下フランジ上端左
+                origin - yVec * innerY - zVec * halfB
+            };
+
+            points.Add(points[0]); // 閉じる
+
+            var polyline = new Polyline(points);
+            return polyline.ToNurbsCurve();
+        }
+
         #region Viewport Display
 
         public override void DrawViewportWires(IGH_PreviewArgs args)
@@ -139,6 +493,15 @@ namespace FEMurGH.Models
             if (_cachedModel == null) return;
 
             var display = args.Display;
+
+            // 要素の線材モデルを常に表示（濃い灰色）
+            if (_elementLines != null && _elementLines.Count > 0)
+            {
+                foreach (var line in _elementLines)
+                {
+                    display.DrawLine(line, Color.FromArgb(60, 60, 60), 2);
+                }
+            }
 
             // NodeID表示
             if (ShowNodeId)
@@ -168,6 +531,74 @@ namespace FEMurGH.Models
             if (ShowSupport && _cachedModel.Supports != null)
             {
                 DrawSupports(display, args.Viewport, _cachedModel.Supports);
+            }
+
+            // LocalAxis表示
+            if (ShowLocalAxis && _localAxisArrows != null)
+            {
+                DrawLocalAxisArrows(display);
+            }
+
+            // CrossSection表示（ワイヤーフレーム）
+            if (ShowCrossSection && _crossSectionBreps != null)
+            {
+                DrawCrossSectionWires(display);
+            }
+        }
+
+        public override void DrawViewportMeshes(IGH_PreviewArgs args)
+        {
+            // CrossSection表示（シェーディング）
+            if (ShowCrossSection && _crossSectionBreps != null)
+            {
+                DrawCrossSectionMeshes(args.Display);
+            }
+        }
+
+        /// <summary>
+        /// 局所座標系の矢印を描画
+        /// </summary>
+        private void DrawLocalAxisArrows(Rhino.Display.DisplayPipeline display)
+        {
+            foreach (var arrow in _localAxisArrows)
+            {
+                // 矢印を描画
+                var line = new Line(arrow.Start, arrow.End);
+                display.DrawArrow(line, arrow.Color, 15, 10);
+
+                // ラベルを矢印の先端に表示
+                var labelPos = arrow.End + (arrow.End - arrow.Start) * 0.1;
+                display.DrawDot(labelPos, arrow.Label, arrow.Color, Color.White);
+            }
+        }
+
+        /// <summary>
+        /// 断面形状のワイヤーフレームを描画
+        /// </summary>
+        private void DrawCrossSectionWires(Rhino.Display.DisplayPipeline display)
+        {
+            foreach (var brep in _crossSectionBreps)
+            {
+                if (brep != null && brep.IsValid)
+                {
+                    display.DrawBrepWires(brep, Color.DarkGray, 1);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 断面形状のシェーディングを描画
+        /// </summary>
+        private void DrawCrossSectionMeshes(Rhino.Display.DisplayPipeline display)
+        {
+            var material = new Rhino.Display.DisplayMaterial(Color.LightGray, 0.5);
+
+            foreach (var brep in _crossSectionBreps)
+            {
+                if (brep != null && brep.IsValid)
+                {
+                    display.DrawBrepShaded(brep, material);
+                }
             }
         }
 
@@ -257,7 +688,7 @@ namespace FEMurGH.Models
 
                 var arrowEnd = center + qVec;
                 display.DrawArrow(new Line(center, arrowEnd), Color.Magenta, 8, 4);
-                
+
                 // 荷重値を矢印の先端から少しずらした位置に表示
                 var labelOffset = qVec * 0.2; // 矢印方向に少しオフセット
                 var labelPt = arrowEnd + labelOffset;
@@ -363,6 +794,29 @@ namespace FEMurGH.Models
                 {
                     bbox.Union(pt);
                 }
+
+                // 局所座標系の矢印も含める
+                if (ShowLocalAxis && _localAxisArrows != null)
+                {
+                    foreach (var arrow in _localAxisArrows)
+                    {
+                        bbox.Union(arrow.Start);
+                        bbox.Union(arrow.End);
+                    }
+                }
+
+                // 断面形状も含める
+                if (ShowCrossSection && _crossSectionBreps != null)
+                {
+                    foreach (var brep in _crossSectionBreps)
+                    {
+                        if (brep != null && brep.IsValid)
+                        {
+                            bbox.Union(brep.GetBoundingBox(false));
+                        }
+                    }
+                }
+
                 // 余裕を持たせる
                 bbox.Inflate(1.0);
                 return bbox;
@@ -389,5 +843,16 @@ namespace FEMurGH.Models
         {
             get { return new Guid("07CEABD2-D9DD-4C6A-ACFD-40EEFB58B622"); }
         }
+    }
+
+    /// <summary>
+    /// 局所座標系矢印の情報を保持
+    /// </summary>
+    internal class LocalAxisArrow
+    {
+        public Point3d Start { get; set; }
+        public Point3d End { get; set; }
+        public Color Color { get; set; }
+        public string Label { get; set; }
     }
 }

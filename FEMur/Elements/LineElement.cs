@@ -80,7 +80,7 @@ namespace FEMur.Elements
             double exy = dy / L;
             double exz = dz / L;
 
-            // 参照ベクトル（LocalAxisプロパティ、デフォルトは{0,0,1}）
+            // 参照ベクトルを取得（デフォルトは{0,0,1}、隣接要素との平均化は外部で実施）
             double[] vrefArr = LocalAxis ?? new double[3] { 0, 0, 1 };
             double vx = vrefArr[0];
             double vy = vrefArr[1];
@@ -142,6 +142,129 @@ namespace FEMur.Elements
             LocalAxisX = new double[] { exx, exy, exz };
             LocalAxisY = new double[] { eyx, eyy, eyz };
             LocalAxisZ = new double[] { ezx, ezy, ezz };
+        }
+
+        /// <summary>
+        /// 連続した部材列の局所座標系を平滑化
+        /// 隣接要素の参照ベクトル（LocalAxisZ）を平均して滑らかな局所座標系を構築
+        /// </summary>
+        /// <param name="elements">全要素リスト</param>
+        /// <param name="nodes">全ノードリスト</param>
+        public static void SmoothLocalAxes(List<ElementBase> elements, List<Node> nodes)
+        {
+            // LineElement のみを抽出
+            var lineElements = elements.OfType<LineElement>().ToList();
+            if (lineElements.Count == 0) return;
+
+            // ノードごとに接続要素を記録
+            var nodeToElements = new Dictionary<int, List<LineElement>>();
+            foreach (var elem in lineElements)
+            {
+                if (elem.NodeIds == null || elem.NodeIds.Count < 2) continue;
+
+                foreach (var nodeId in elem.NodeIds)
+                {
+                    if (!nodeToElements.ContainsKey(nodeId))
+                        nodeToElements[nodeId] = new List<LineElement>();
+                    nodeToElements[nodeId].Add(elem);
+                }
+            }
+
+            // 各要素の初期局所座標系を計算（デフォルト参照ベクトル使用）
+            foreach (var elem in lineElements)
+            {
+                elem.CalcLocalAxis(nodes);
+            }
+
+            // 反復処理で参照ベクトルを平滑化（2回繰り返し）
+            for (int iteration = 0; iteration < 2; iteration++)
+            {
+                var newLocalAxes = new Dictionary<int, double[]>();
+
+                foreach (var elem in lineElements)
+                {
+                    if (elem.NodeIds == null || elem.NodeIds.Count < 2) continue;
+                    if (elem.LocalAxisZ == null) continue;
+
+                    // 隣接要素を取得
+                    var adjacentElements = new List<LineElement>();
+                    foreach (var nodeId in elem.NodeIds)
+                    {
+                        if (nodeToElements.ContainsKey(nodeId))
+                        {
+                            foreach (var adjElem in nodeToElements[nodeId])
+                            {
+                                if (adjElem.Id != elem.Id && !adjacentElements.Contains(adjElem))
+                                {
+                                    adjacentElements.Add(adjElem);
+                                }
+                            }
+                        }
+                    }
+
+                    // 隣接要素がない場合は現在の参照ベクトルを維持
+                    if (adjacentElements.Count == 0)
+                    {
+                        newLocalAxes[elem.Id] = elem.LocalAxisZ;
+                        continue;
+                    }
+
+                    // 隣接要素のLocalAxisZを平均
+                    double sumX = elem.LocalAxisZ[0];
+                    double sumY = elem.LocalAxisZ[1];
+                    double sumZ = elem.LocalAxisZ[2];
+                    int count = 1;
+
+                    foreach (var adjElem in adjacentElements)
+                    {
+                        if (adjElem.LocalAxisZ == null) continue;
+
+                        // 方向が逆転している場合は符号を反転
+                        double dot = elem.LocalAxisZ[0] * adjElem.LocalAxisZ[0] +
+                                     elem.LocalAxisZ[1] * adjElem.LocalAxisZ[1] +
+                                     elem.LocalAxisZ[2] * adjElem.LocalAxisZ[2];
+
+                        if (dot < 0)
+                        {
+                            sumX -= adjElem.LocalAxisZ[0];
+                            sumY -= adjElem.LocalAxisZ[1];
+                            sumZ -= adjElem.LocalAxisZ[2];
+                        }
+                        else
+                        {
+                            sumX += adjElem.LocalAxisZ[0];
+                            sumY += adjElem.LocalAxisZ[1];
+                            sumZ += adjElem.LocalAxisZ[2];
+                        }
+                        count++;
+                    }
+
+                    // 平均ベクトルを正規化
+                    double avgX = sumX / count;
+                    double avgY = sumY / count;
+                    double avgZ = sumZ / count;
+                    double norm = Math.Sqrt(avgX * avgX + avgY * avgY + avgZ * avgZ);
+
+                    if (norm > 1e-12)
+                    {
+                        newLocalAxes[elem.Id] = new double[] { avgX / norm, avgY / norm, avgZ / norm };
+                    }
+                    else
+                    {
+                        newLocalAxes[elem.Id] = elem.LocalAxisZ;
+                    }
+                }
+
+                // 平滑化された参照ベクトルを設定して再計算
+                foreach (var elem in lineElements)
+                {
+                    if (newLocalAxes.ContainsKey(elem.Id))
+                    {
+                        elem.LocalAxis = newLocalAxes[elem.Id];
+                        elem.CalcLocalAxis(nodes);
+                    }
+                }
+            }
         }
 
         // 座標変換行列: v_g = T v_l（T は diag(R,R,R,R)）

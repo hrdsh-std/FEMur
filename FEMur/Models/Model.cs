@@ -28,6 +28,9 @@ namespace FEMur.Models
         // 追加: 計算済みフラグ
         public bool IsSolved { get; set; }
 
+        // 追加: 局所座標系の平滑化を有効にするフラグ
+        public bool EnableLocalAxisSmoothing { get; set; } = true;
+
         public Model()
         {
             Nodes = new List<Node>();
@@ -41,7 +44,8 @@ namespace FEMur.Models
         public Model
             (List<Node> nodes, List<ElementBase> elements, 
             List<Support> supports,
-            List<Load> loads)
+            List<Load> loads,
+            bool enableLocalAxisSmoothing = true)
         {
             Nodes = nodes;
             Elements = elements;
@@ -49,6 +53,13 @@ namespace FEMur.Models
             Loads = loads;
             Result = null;
             IsSolved = false;
+            EnableLocalAxisSmoothing = enableLocalAxisSmoothing;
+
+            // 局所座標系の平滑化を実行
+            if (EnableLocalAxisSmoothing)
+            {
+                InitializeLocalAxes();
+            }
         }
 
         public Model(Model other)
@@ -59,6 +70,7 @@ namespace FEMur.Models
             this.Loads = other.Loads;
             this.Result = other.Result;
             this.IsSolved = other.IsSolved;
+            this.EnableLocalAxisSmoothing = other.EnableLocalAxisSmoothing;
         }
 
         public Model(SerializationInfo info, StreamingContext context)
@@ -74,11 +86,13 @@ namespace FEMur.Models
             {
                 Result = (Result)info.GetValue("Result", typeof(Result));
                 IsSolved = info.GetBoolean("IsSolved");
+                EnableLocalAxisSmoothing = info.GetBoolean("EnableLocalAxisSmoothing");
             }
             catch
             {
                 Result = null;
                 IsSolved = false;
+                EnableLocalAxisSmoothing = true;
             }
         }
 
@@ -91,6 +105,41 @@ namespace FEMur.Models
             info.AddValue("Loads", Loads);
             info.AddValue("Result", Result);
             info.AddValue("IsSolved", IsSolved);
+            info.AddValue("EnableLocalAxisSmoothing", EnableLocalAxisSmoothing);
+        }
+
+        /// <summary>
+        /// 局所座標系を初期化（連続部材の平滑化を含む）
+        /// </summary>
+        public void InitializeLocalAxes()
+        {
+            if (Elements == null || Nodes == null) return;
+
+            // LineElement の局所座標系を平滑化
+            LineElement.SmoothLocalAxes(Elements, Nodes);
+        }
+
+        /// <summary>
+        /// 局所座標系を強制的に再計算
+        /// </summary>
+        /// <param name="smooth">平滑化を行うかどうか（デフォルト: true）</param>
+        public void RecalculateLocalAxes(bool smooth = true)
+        {
+            if (smooth)
+            {
+                InitializeLocalAxes();
+            }
+            else
+            {
+                // 平滑化なしで各要素を個別に計算
+                foreach (var elem in Elements)
+                {
+                    if (elem is LineElement lineElem)
+                    {
+                        lineElem.CalcLocalAxis(Nodes);
+                    }
+                }
+            }
         }
 
         public override Object Clone()
