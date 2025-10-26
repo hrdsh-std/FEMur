@@ -62,23 +62,35 @@ namespace FEMurGH.Results
                 }
                 else
                 {
-                    // フォールバック: 部材軸から局所座標系を構築
-                    exVec = p1 - p0;
-                    if (!exVec.Unitize() || exVec.IsTiny())
-                        continue;
-
-                    Vector3d up = Vector3d.ZAxis;
-                    if (Math.Abs(Vector3d.Multiply(exVec, up)) > 0.99) up = Vector3d.YAxis;
-
-                    eyVec = Vector3d.CrossProduct(up, exVec);
-                    if (!eyVec.Unitize() || eyVec.IsTiny())
+                    // 局所座標系が未計算の場合は計算
+                    lineElem.CalcLocalAxis(new List<Node> { n0, n1 });
+                    
+                    if (elem.TryGetLocalCoordinateSystem(out ex, out ey, out ez))
                     {
-                        up = Vector3d.XAxis;
-                        eyVec = Vector3d.CrossProduct(up, exVec);
+                        exVec = new Vector3d(ex[0], ex[1], ex[2]);
+                        eyVec = new Vector3d(ey[0], ey[1], ey[2]);
+                        ezVec = new Vector3d(ez[0], ez[1], ez[2]);
+                    }
+                    else
+                    {
+                        // フォールバック: 部材軸から局所座標系を構築
+                        exVec = p1 - p0;
+                        if (!exVec.Unitize() || exVec.IsTiny())
+                            continue;
+
+                        Vector3d up = Vector3d.ZAxis;
+                        if (Math.Abs(Vector3d.Multiply(exVec, up)) > 0.99) up = Vector3d.YAxis;
+
+                        ezVec = Vector3d.CrossProduct(up, exVec);
+                        if (!ezVec.Unitize() || ezVec.IsTiny())
+                        {
+                            up = Vector3d.XAxis;
+                            ezVec = Vector3d.CrossProduct(up, exVec);
+                            if (!ezVec.Unitize() || ezVec.IsTiny()) continue;
+                        }
+                        eyVec = Vector3d.CrossProduct(ezVec, exVec);
                         if (!eyVec.Unitize() || eyVec.IsTiny()) continue;
                     }
-                    ezVec = Vector3d.CrossProduct(exVec, eyVec);
-                    if (!ezVec.Unitize() || ezVec.IsTiny()) continue;
                 }
 
                 // 応力値 i/j
@@ -86,17 +98,29 @@ namespace FEMurGH.Results
                     continue;
 
                 // 図式オフセット方向:
-                // 「部材軸から時計回りに90°」= 局所右手系に対して -ey 側を正とする。
-                // Fz/Mz を選んだ場合は Z面でのCW（-ez）を用いる。
-                Vector3d n = -eyVec;
+                // 局所Y方向の荷重(Fy, Mz)と軸力(Fx)、ねじりモーメント(Mx)は局所Y方向に描画
+                // 局所Z方向の荷重(Fz, My)は局所Z方向に描画
+                // i端: 各方向の正方向を正とする
+                // j端: 各方向の負方向を正とする（符号を反転）
+                Vector3d offsetDir_i, offsetDir_j;
+                
                 switch (forceType)
                 {
                     case SectionForceView.SectionForceType.Fz:
-                    case SectionForceView.SectionForceType.Mz:
-                        n = -ezVec;
+                    case SectionForceView.SectionForceType.My:
+                        // 局所Z方向に描画
+                        offsetDir_i = ezVec;  // i端: +Z方向が正
+                        offsetDir_j = -ezVec; // j端: -Z方向が正
                         break;
+                    
+                    case SectionForceView.SectionForceType.Fx:
+                    case SectionForceView.SectionForceType.Fy:
+                    case SectionForceView.SectionForceType.Mx:
+                    case SectionForceView.SectionForceType.Mz:
                     default:
-                        n = -eyVec;
+                        // 局所Y方向に描画
+                        offsetDir_i = eyVec;  // i端: +Y方向が正
+                        offsetDir_j = -eyVec; // j端: -Y方向が正
                         break;
                 }
 
@@ -104,10 +128,10 @@ namespace FEMurGH.Results
                 double hi = vi * scale;
                 double hj = vj * scale;
 
-                // 図式ポリライン
+                // 図式ポリライン（i端とj端で異なるオフセット方向を使用）
                 var poly = new Polyline(2);
-                poly.Add(p0 + n * hi);
-                poly.Add(p1 + n * hj);
+                poly.Add(p0 + offsetDir_i * hi);
+                poly.Add(p1 + offsetDir_j * hj);
 
                 preview.Diagrams.Add(new DiagramLine
                 {
@@ -118,7 +142,7 @@ namespace FEMurGH.Results
 
                 if (showFilled)
                 {
-                    var m = BuildQuadMesh(p0, p1, p0 + n * hi, p1 + n * hj, color);
+                    var m = BuildQuadMesh(p0, p1, p0 + offsetDir_i * hi, p1 + offsetDir_j * hj, color);
                     preview.FilledMeshes.Add(m);
                 }
 
@@ -126,8 +150,8 @@ namespace FEMurGH.Results
                 {
                     // 少し法線方向に離して重なり回避
                     var offSmall = 0.03;
-                    var p0lbl = p0 + n * (hi + offSmall);
-                    var p1lbl = p1 + n * (hj + offSmall);
+                    var p0lbl = p0 + offsetDir_i * (hi + offSmall);
+                    var p1lbl = p1 + offsetDir_j * (hj + offSmall);
 
                     preview.Labels.Add(new ForceLabel
                     {

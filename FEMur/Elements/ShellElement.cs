@@ -30,6 +30,10 @@ namespace FEMur.Elements
         {
             throw new NotImplementedException();
         }
+        public override void CalcLocalAxis(List<Node> nodes)
+        {
+            throw new NotImplementedException();
+        }
         public override string ToString()
         {
             return $"ShellElement: {Id}, Nodes: {string.Join(",", NodeIds)}";

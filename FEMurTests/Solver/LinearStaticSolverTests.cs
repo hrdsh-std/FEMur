@@ -170,7 +170,7 @@ namespace FEMur.Solver.Tests
         {
             // 片持ち梁 L=1000mm を複数要素で離散化（例: 4要素・5節点）
             double L = 1000.0;
-            int nodeCount = 2; // 5節点 → 4要素
+            int nodeCount = 4; // 5節点 → 4要素
             var nodes = new List<Node>(nodeCount);
             for (int i = 0; i < nodeCount; i++)
             {

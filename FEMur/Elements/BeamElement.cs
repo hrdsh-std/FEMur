@@ -28,10 +28,11 @@ namespace FEMur.Elements
 
         internal override Matrix<double> CalcLocalStiffness(List<Node> nodes)
         {
-            int node1Id = NodeIds[0];
-            int node2Id = NodeIds[1];
-            var node1 = nodes.First(n => n.Id == node1Id);
-            var node2 = nodes.First(n => n.Id == node2Id);
+            // 局所座標系が未計算の場合は計算
+            if (LocalAxisX == null || LocalAxisY == null || LocalAxisZ == null || Length <= 0)
+            {
+                CalcLocalAxis(nodes);
+            }
 
             var cs = (CrossSection_Beam)this.CrossSection;
 
@@ -42,11 +43,8 @@ namespace FEMur.Elements
             double Izz = cs.Izz;
             double J = cs.J;
 
-            double dx = node2.Position.X - node1.Position.X;
-            double dy = node2.Position.Y - node1.Position.Y;
-            double dz = node2.Position.Z - node1.Position.Z;
-            double L = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-            if (L <= 1e-12) throw new ArgumentException($"Element(Id={Id}) length is approximately zero.");
+            // CalcLocalAxisで計算済みの部材長を使用
+            double L = Length;
 
             double ka = E * A / L;
             double kt = G * J / L;
@@ -127,87 +125,7 @@ namespace FEMur.Elements
             return ke;
         }
 
-        // 座標変換行列: v_g = T v_l（T は diag(R,R,R,R)）
-        internal override Matrix<double> CalcTransformationMatrix(List<Node> nodes)
-        {
-            int node1Id = NodeIds[0];
-            int node2Id = NodeIds[1];
-            var n1 = nodes.First(n => n.Id == node1Id);
-            var n2 = nodes.First(n => n.Id == node2Id);
 
-            double dx = n2.Position.X - n1.Position.X;
-            double dy = n2.Position.Y - n1.Position.Y;
-            double dz = n2.Position.Z - n1.Position.Z;
-            double L = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-            if (L <= 1e-12)
-                throw new ArgumentException($"Element(Id={this.Id}) length is approximately zero. Check node coordinates.");
-
-            double exx = dx / L, exy = dy / L, exz = dz / L;
-
-            double[] vrefArr = LocalAxis ?? new double[3] { 0, 0, 1 };
-            double vx = vrefArr[0], vy = vrefArr[1], vz = vrefArr[2];
-
-            double dot = vx * exx + vy * exy + vz * exz;
-            double ezx = vx - dot * exx;
-            double ezy = vy - dot * exy;
-            double ezz = vz - dot * exz;
-            double ezn = Math.Sqrt(ezx * ezx + ezy * ezy + ezz * ezz);
-
-            if (ezn < 1e-12)
-            {
-                vx = 0; vy = 1; vz = 0;
-                dot = vx * exx + vy * exy + vz * exz;
-                ezx = vx - dot * exx;
-                ezy = vy - dot * exy;
-                ezz = vz - dot * exz;
-                ezn = Math.Sqrt(ezx * ezx + ezy * ezy + ezz * ezz);
-
-                if (ezn < 1e-12)
-                {
-                    vx = 0; vy = 0; vz = 1;
-                    dot = vx * exx + vy * exy + vz * exz;
-                    ezx = vx - dot * exx;
-                    ezy = vy - dot * exy;
-                    ezz = vz - dot * exz;
-                    ezn = Math.Sqrt(ezx * ezx + ezy * ezy + ezz * ezz);
-
-                    if (ezn < 1e-12)
-                        throw new ArgumentException($"Element(Id={this.Id}) cannot build local axes (vref parallel to element).");
-                }
-            }
-
-            ezx /= ezn; ezy /= ezn; ezz /= ezn;
-
-            double eyx = ezy * exz - ezz * exy;
-            double eyy = ezz * exx - ezx * exz;
-            double eyz = ezx * exy - ezy * exx;
-            double eyn = Math.Sqrt(eyx * eyx + eyy * eyy + eyz * eyz);
-            eyx /= eyn; eyy /= eyn; eyz /= eyn;
-
-            // 局所座標系の基底ベクトルを保存（グローバル座標系での表現）
-            LocalAxisX = new double[] { exx, exy, exz };
-            LocalAxisY = new double[] { eyx, eyy, eyz };
-            LocalAxisZ = new double[] { ezx, ezy, ezz };
-
-            // グローバル→ローカル変換行列 R（行に ex, ey, ez を配置）
-            var R = Matrix<double>.Build.Dense(3, 3);
-            R[0, 0] = exx; R[0, 1] = exy; R[0, 2] = exz;  // 行0: ex
-            R[1, 0] = eyx; R[1, 1] = eyy; R[1, 2] = eyz;  // 行1: ey
-            R[2, 0] = ezx; R[2, 1] = ezy; R[2, 2] = ezz;  // 行2: ez
-
-            // 12x12 のブロック対角 T を明示ループで構成
-            var T = Matrix<double>.Build.Dense(12, 12);
-            int[] bases = new[] { 0, 3, 6, 9 }; // (0,0), (3,3), (6,6), (9,9)
-            foreach (var b in bases)
-            {
-                for (int i = 0; i < 3; i++)
-                    for (int j = 0; j < 3; j++)
-                        T[b + i, b + j] = R[i, j];
-            }
-
-            this.TransformationMatrix = T;
-            return T;
-        }
 
         /// <summary>
         /// 要素の局所変位ベクトルから断面力（応力）を計算

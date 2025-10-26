@@ -56,8 +56,10 @@ namespace FEMur.Elements
 
         internal abstract Matrix<double> CalcTransformationMatrix(List<Node> nodes);
 
+        public abstract void CalcLocalAxis(List<Node> nodes);
+
         /// <summary>
-        /// 局所座標系の基底ベクトル（ex, ey, ez）を取得
+        /// 局所座標系の基準ベクトル（ex, ey, ez）を取得
         /// </summary>
         /// <param name="ex">部材軸方向の単位ベクトル（出力）</param>
         /// <param name="ey">局所Y軸の単位ベクトル（出力）</param>
@@ -70,6 +72,7 @@ namespace FEMur.Elements
             ez = LocalAxisZ;
             return ex != null && ey != null && ez != null;
         }
+
 
         //Tostringの実装を強制
         public abstract override string ToString();
