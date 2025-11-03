@@ -400,10 +400,10 @@ namespace FEMurGH.Models
             double halfH = H / 2.0;
 
             // 外側の矩形
-            var outerP1 = origin - yVec * halfH - zVec * halfB;
-            var outerP2 = origin - yVec * halfH + zVec * halfB;
-            var outerP3 = origin + yVec * halfH + zVec * halfB;
-            var outerP4 = origin + yVec * halfH - zVec * halfB;
+            var outerP1 = origin - zVec * halfH - yVec * halfB;
+            var outerP2 = origin - zVec * halfH + yVec * halfB;
+            var outerP3 = origin + zVec * halfH + yVec * halfB;
+            var outerP4 = origin + zVec * halfH - yVec * halfB;
 
             var outerPolyline = new Polyline(new[] { outerP1, outerP2, outerP3, outerP4, outerP1 });
             var outerCurve = outerPolyline.ToNurbsCurve();
@@ -414,10 +414,10 @@ namespace FEMurGH.Models
 
             if (innerHalfB > 0 && innerHalfH > 0)
             {
-                var innerP1 = origin - yVec * innerHalfH - zVec * innerHalfB;
-                var innerP2 = origin - yVec * innerHalfH + zVec * innerHalfB;
-                var innerP3 = origin + yVec * innerHalfH + zVec * innerHalfB;
-                var innerP4 = origin + yVec * innerHalfH - zVec * innerHalfB;
+                var innerP1 = origin - zVec * innerHalfH - yVec * innerHalfB;
+                var innerP2 = origin - zVec * innerHalfH + yVec * innerHalfB;
+                var innerP3 = origin + zVec * innerHalfH + yVec * innerHalfB;
+                var innerP4 = origin + zVec * innerHalfH - yVec * innerHalfB;
 
                 var innerPolyline = new Polyline(new[] { innerP1, innerP2, innerP3, innerP4, innerP1 });
                 var innerCurve = innerPolyline.ToNurbsCurve();
@@ -455,29 +455,29 @@ namespace FEMurGH.Models
             var points = new List<Point3d>
             {
                 // 下フランジ下端左
-                origin - yVec * halfH - zVec * halfB,
+                origin - zVec * halfH - yVec * halfB,
                 // 下フランジ下端右
-                origin - yVec * halfH + zVec * halfB,
+                origin - zVec * halfH + yVec * halfB,
                 // 下フランジ上端右
-                origin - yVec * innerY + zVec * halfB,
+                origin - zVec * innerY + yVec * halfB,
                 // ウェブ右
-                origin - yVec * innerY + zVec * halfTw,
+                origin - zVec * innerY + yVec * halfTw,
                 // ウェブ右上
-                origin + yVec * innerY + zVec * halfTw,
+                origin + zVec * innerY + yVec * halfTw,
                 // 上フランジ下端右
-                origin + yVec * innerY + zVec * halfB,
+                origin + zVec * innerY + yVec * halfB,
                 // 上フランジ上端右
-                origin + yVec * halfH + zVec * halfB,
+                origin + zVec * halfH + yVec * halfB,
                 // 上フランジ上端左
-                origin + yVec * halfH - zVec * halfB,
+                origin + zVec * halfH - yVec * halfB,
                 // 上フランジ下端左
-                origin + yVec * innerY - zVec * halfB,
+                origin + zVec * innerY - yVec * halfB,
                 // ウェブ左上
-                origin + yVec * innerY - zVec * halfTw,
+                origin + zVec * innerY - yVec * halfTw,
                 // ウェブ左下
-                origin - yVec * innerY - zVec * halfTw,
+                origin - zVec * innerY - yVec * halfTw,
                 // 下フランジ上端左
-                origin - yVec * innerY - zVec * halfB
+                origin - zVec * innerY - yVec * halfB
             };
 
             points.Add(points[0]); // 閉じる

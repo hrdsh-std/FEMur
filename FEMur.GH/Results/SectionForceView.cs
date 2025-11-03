@@ -30,6 +30,7 @@ namespace FEMurGH.Results
         // 入力キャッシュ
         private Model _model;
         private double _scale = 1.0;
+        private double _autoScale = 1.0; // 自動計算されたスケール
 
         // プレビューキャッシュ
         private SectionForcePreview _preview = SectionForcePreview.Empty;
@@ -44,7 +45,7 @@ namespace FEMurGH.Results
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("AnalyzedModel", "AM", "FEMur Model with computed results", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Scale", "S", "Display scale factor", GH_ParamAccess.item, 1.0);
+            pManager.AddNumberParameter("Scale", "S", "Display scale factor (multiplied with auto-scale)", GH_ParamAccess.item, 1.0);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -56,6 +57,7 @@ namespace FEMurGH.Results
         {
             _model = null;
             _scale = 1.0;
+            _autoScale = 1.0;
 
             if (!DA.GetData(0, ref _model) || _model == null)
             {
@@ -77,14 +79,126 @@ namespace FEMurGH.Results
                 return;
             }
 
+            // モデルサイズに基づく自動スケール計算
+            _autoScale = ComputeAutoScale(_model, SelectedForceType);
+
+            // 最終スケール = 自動スケール × 入力スケール
+            double finalScale = _autoScale * _scale;
+
             // 可視化データ生成
             _preview = SectionForceRenderer.BuildPreview(
                 _model,
-                _scale,
+                finalScale,
                 SelectedForceType,
                 ShowFilled,
                 ShowNumbers
             );
+        }
+
+        /// <summary>
+        /// モデルの大きさと応力値に基づいて自動スケールを計算
+        /// </summary>
+        private double ComputeAutoScale(Model model, SectionForceType forceType)
+        {
+            if (model == null || model.Nodes == null || model.Nodes.Count == 0)
+                return 1.0;
+
+            if (model.Result == null || model.Result.ElementStresses == null || model.Result.ElementStresses.Count == 0)
+                return 1.0;
+
+            // 1. モデルの特性寸法を計算（バウンディングボックスの対角線長さ）
+            double modelSize = CalculateModelCharacteristicLength(model);
+
+            if (modelSize <= 0)
+                return 1.0;
+
+            // 2. 選択された断面力の最大値を取得
+            double maxForce = GetMaxForceValue(model, forceType);
+
+            if (maxForce <= 0)
+                return 1.0;
+
+            // 3. 自動スケール = (モデルサイズ × 0.1) / 最大断面力
+            // 0.1は経験的な係数で、応力図がモデルサイズの約10%になるように調整
+            double autoScale = (modelSize * 0.1) / maxForce;
+
+            return autoScale;
+        }
+
+        /// <summary>
+        /// モデルの特性寸法を計算（バウンディングボックスの対角線長さ）
+        /// </summary>
+        private double CalculateModelCharacteristicLength(Model model)
+        {
+            if (model.Nodes == null || model.Nodes.Count == 0)
+                return 0.0;
+
+            double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
+
+            foreach (var node in model.Nodes)
+            {
+                minX = Math.Min(minX, node.Position.X);
+                minY = Math.Min(minY, node.Position.Y);
+                minZ = Math.Min(minZ, node.Position.Z);
+                maxX = Math.Max(maxX, node.Position.X);
+                maxY = Math.Max(maxY, node.Position.Y);
+                maxZ = Math.Max(maxZ, node.Position.Z);
+            }
+
+            double dx = maxX - minX;
+            double dy = maxY - minY;
+            double dz = maxZ - minZ;
+
+            // バウンディングボックスの対角線長さ
+            double diagonalLength = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+
+            return diagonalLength;
+        }
+
+        /// <summary>
+        /// 選択された断面力タイプの最大値を取得
+        /// </summary>
+        private double GetMaxForceValue(Model model, SectionForceType forceType)
+        {
+            if (model.Result == null || model.Result.ElementStresses == null)
+                return 0.0;
+
+            double maxValue = 0.0;
+
+            foreach (var stress in model.Result.ElementStresses)
+            {
+                double value = 0.0;
+
+                switch (forceType)
+                {
+                    case SectionForceType.Fx:
+                        value = Math.Max(Math.Abs(stress.Fx_i), Math.Abs(stress.Fx_j));
+                        break;
+                    case SectionForceType.Fy:
+                        value = Math.Max(Math.Abs(stress.Fy_i), Math.Abs(stress.Fy_j));
+                        break;
+                    case SectionForceType.Fz:
+                        value = Math.Max(Math.Abs(stress.Fz_i), Math.Abs(stress.Fz_j));
+                        break;
+                    case SectionForceType.Mx:
+                        value = Math.Max(Math.Abs(stress.Mx_i), Math.Abs(stress.Mx_j));
+                        break;
+                    case SectionForceType.My:
+                        value = Math.Max(Math.Abs(stress.My_i), Math.Abs(stress.My_j));
+                        break;
+                    case SectionForceType.Mz:
+                        value = Math.Max(Math.Abs(stress.Mz_i), Math.Abs(stress.Mz_j));
+                        break;
+                    case SectionForceType.None:
+                    default:
+                        continue;
+                }
+
+                maxValue = Math.Max(maxValue, value);
+            }
+
+            return maxValue;
         }
 
         public override void CreateAttributes()

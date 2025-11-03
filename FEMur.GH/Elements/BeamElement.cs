@@ -11,14 +11,14 @@ using FEMBeamElement = FEMur.Elements.BeamElement;
 namespace FEMurGH.Elements
 {
     /// <summary>
-    /// 入力: List<Node> i端Node, List<Node> j端Node, Material, CrossSection_Beam
+    /// 入力: List<Node> i端Node, List<Node> j端Node, Material, CrossSection_Beam, BetaAngle
     /// 出力: List<FEMur.Elements.BeamElement>
     /// </summary>
     public class BeamElement : GH_Component
     {
         public BeamElement()
           : base("BeamElement(FEMur)", "BeamElement",
-              "Create FEMur BeamElements from paired i/j Nodes with material and cross section.",
+              "Create FEMur BeamElements from paired i/j Nodes with material, cross section, and beta angle.",
               "FEMur", "Model")
         {
         }
@@ -30,6 +30,10 @@ namespace FEMurGH.Elements
             pManager.AddGenericParameter("jNodes", "Nj", "End-end (j) FEMur Nodes (List<Node>)", GH_ParamAccess.list);
             pManager.AddGenericParameter("Material", "Mat", "FEMur Material", GH_ParamAccess.item);
             pManager.AddGenericParameter("CrossSection", "CS", "FEMur CrossSection_Beam", GH_ParamAccess.item);
+            pManager.AddNumberParameter("BetaAngle", "β", "Local coordinate system rotation angle (degrees, default=0)", GH_ParamAccess.item, 0.0);
+
+            // BetaAngleはオプショナル
+            pManager[4].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -43,11 +47,13 @@ namespace FEMurGH.Elements
             var jNodes = new List<FEMNode>();
             FEMMat material = null;
             FEMCS crossSection = null;
+            double betaAngle = 0.0;
 
             if (!DA.GetDataList(0, iNodes)) return;
             if (!DA.GetDataList(1, jNodes)) return;
             if (!DA.GetData(2, ref material)) return;
             if (!DA.GetData(3, ref crossSection)) return;
+            DA.GetData(4, ref betaAngle); // オプショナル
 
             if (material == null)
             {
@@ -67,7 +73,7 @@ namespace FEMurGH.Elements
             if (iNodes.Count == 0)
             {
                 DA.SetDataList(0, new List<FEMBeamElement>());
-                return;
+                return; 
             }
 
             var elems = new List<FEMBeamElement>(iNodes.Count);
@@ -82,7 +88,7 @@ namespace FEMurGH.Elements
                 }
 
                 // 要素IDは0からの連番で採番（必要に応じて別入力で開始IDを設けても良い）
-                var be = new FEMBeamElement(k, ni, nj, material, crossSection);
+                var be = new FEMBeamElement(k, ni, nj, material, crossSection, betaAngle);
                 elems.Add(be);
             }
 

@@ -13,14 +13,17 @@ namespace FEMur.Elements
     public class BeamElement : LineElement, ISerializable
     {
         public BeamElement() { }
-        public BeamElement(int id, int node1Id, int node2Id, Material material, CrossSection_Beam crossSection)
-            : base(id, node1Id, node2Id, material, crossSection)
+        
+        public BeamElement(int id, int node1Id, int node2Id, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
+            : base(id, node1Id, node2Id, material, crossSection, betaAngle)
         {
         }
-        public BeamElement(int id, Node node1, Node node2, Material material, CrossSection_Beam crossSection)
-            : base(id, node1.Id, node2.Id, material, crossSection)
+        
+        public BeamElement(int id, Node node1, Node node2, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
+            : base(id, node1.Id, node2.Id, material, crossSection, betaAngle)
         {
         }
+        
         public BeamElement(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
@@ -164,7 +167,7 @@ namespace FEMur.Elements
         // Tostringのoverride
         public override string ToString()
         {
-               return $"BeamElement(Id:{Id}, Node1:{NodeIds[0]}, Node2:{NodeIds[1]}, Material:{Material.Name}, CrossSection:{CrossSection.Name})";
+               return $"BeamElement(Id:{Id}, Node1:{NodeIds[0]}, Node2:{NodeIds[1]}, Material:{Material.Name}, CrossSection:{CrossSection.Name}, β:{BetaAngle:F1}°)";
         }
     }
 }

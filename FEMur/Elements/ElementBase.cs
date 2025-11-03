@@ -32,9 +32,9 @@ namespace FEMur.Elements
 
         // 局所座標系の基底ベクトル（グローバル座標系での表現）
         // ex: 部材軸方向、ey: 局所Y軸、ez: 局所Z軸
-        public double[] LocalAxisX { get; protected set; } = null;
-        public double[] LocalAxisY { get; protected set; } = null;
-        public double[] LocalAxisZ { get; protected set; } = null;
+        public double[] LocalAxisX { get; set; } = null;
+        public double[] LocalAxisY { get; set; } = null;
+        public double[] LocalAxisZ { get; set; } = null;
 
         protected ElementBase()
         {

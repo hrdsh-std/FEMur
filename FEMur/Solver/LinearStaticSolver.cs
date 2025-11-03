@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using FEMur.Geometry;
 using FEMur.Elements;
 using FEMur.Models;
 using FEMur.Results;
@@ -158,7 +159,10 @@ namespace FEMur.Solver
                     int nodeIndex = model.Nodes.FindIndex(n => n.Id == pointLoad.NodeId);
                     if (nodeIndex < 0)
                         throw new ArgumentException($"PointLoad refers to unknown NodeId={pointLoad.NodeId}");
+                    
                     int globalIndex = nodeIndex * dof;
+                    
+                    // PointLoadは常にグローバル座標系
                     globalF[globalIndex + 0] += pointLoad.Force.X;
                     globalF[globalIndex + 1] += pointLoad.Force.Y;
                     globalF[globalIndex + 2] += pointLoad.Force.Z;
@@ -176,10 +180,70 @@ namespace FEMur.Solver
                         .Select(id => model.Nodes.FindIndex(n => n.Id == id))
                         .ToArray();
 
+                    // ElementLoadの等価節点荷重はローカル座標系で計算される
                     Vector<double> feLocal = elementLoad.CalcEquivalentNodalLoadLocal(element, model.Nodes);
-                    Matrix<double> T = element.CalcTransformationMatrix(model.Nodes);
-                    Vector<double> feGlobal = T * feLocal;
+                    
+                    Vector<double> feGlobal;
+                    
+                    if (elementLoad.Local)
+                    {
+                        // ローカル座標系の場合、変換行列を使用してグローバル座標系に変換
+                        Matrix<double> T = element.CalcTransformationMatrix(model.Nodes);
+                        feGlobal = T * feLocal;
+                    }
+                    else
+                    {
+                        // グローバル座標系の場合
+                        // 要素の局所座標系が定義されている場合
+                        if (element is LineElement lineElement &&
+                            lineElement.LocalAxisX != null &&
+                            lineElement.LocalAxisY != null &&
+                            lineElement.LocalAxisZ != null)
+                        {
+                            // グローバル荷重をローカル座標系に変換
+                            var R = Matrix<double>.Build.DenseOfRowArrays(
+                                lineElement.LocalAxisX,
+                                lineElement.LocalAxisY,
+                                lineElement.LocalAxisZ
+                            );
+                            
+                            // グローバル→ローカル変換: Q_local = R * Q_global
+                            var qGlobal = Vector<double>.Build.DenseOfArray(new[] 
+                            { 
+                                elementLoad.QLocal.X, 
+                                elementLoad.QLocal.Y, 
+                                elementLoad.QLocal.Z 
+                            });
+                            
+                            var qLocal = R * qGlobal;
+                            
+                            // ローカル荷重で等価節点荷重を計算
+                            var tempElementLoad = new ElementLoad(
+                                elementLoad.ElementId,
+                                new Vector3(qLocal[0], qLocal[1], qLocal[2]),
+                                elementLoad.MLocal,
+                                true
+                            );
+                            
+                            feLocal = tempElementLoad.CalcEquivalentNodalLoadLocal(element, model.Nodes);
+                            
+                            // ローカル等価節点荷重をグローバルに変換
+                            Matrix<double> T = element.CalcTransformationMatrix(model.Nodes);
+                            feGlobal = T * feLocal;
+                        }
+                        else
+                        {
+                            // 局所座標系が未定義の場合は警告
+                            Warnings.Add($"ElementLoad for ElementId={elementLoad.ElementId} is marked as Global, " +
+                                       $"but element local coordinate system is not defined. " +
+                                       $"Treating as Local.");
+                    
+                            Matrix<double> T = element.CalcTransformationMatrix(model.Nodes);
+                            feGlobal = T * feLocal;
+                        }
+                    }
 
+                    // グローバル等価節点荷重を全体荷重ベクトルに加算
                     for (int i = 0; i < element.NodeIds.Count; i++)
                     {
                         int nodeI = nodeIndices[i];

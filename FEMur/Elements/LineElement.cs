@@ -12,20 +12,24 @@ namespace FEMur.Elements
     //abstract class for line elements such as beams, trusses, etc.
     public abstract class LineElement:ElementBase,ISerializable
     {
+        public double BetaAngle { get; set; } = 0.0; // in degrees
+
         public LineElement() { }
         
-        LineElement(int id,List<int> nodeIds, Material material, CrossSection_Beam crossSection)
+        LineElement(int id,List<int> nodeIds, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
             :base(id,nodeIds,material,crossSection)
         {
-
+            BetaAngle = betaAngle;
         }
-        LineElement(int id, List<Node> nodes, Material material, CrossSection_Beam crossSection)
+        LineElement(int id, List<Node> nodes, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
             : base(id, nodes.Select(n => n.Id).ToList(), material, crossSection)
         {
+            BetaAngle = betaAngle;
         }
-        LineElement(int id, Node node1, Node node2, Material material, CrossSection_Beam crossSection)
+        LineElement(int id, Node node1, Node node2, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
             : base(id, new List<int> { node1.Id, node2.Id }, material, crossSection)
         {
+            BetaAngle = betaAngle;
         }
 
 
@@ -33,19 +37,20 @@ namespace FEMur.Elements
         {
             NodeIds = new List<int> { v1, v2 };
         }
-        public LineElement(int id, int node1Id, int node2Id, Material material, CrossSection_Beam crossSection)
+        public LineElement(int id, int node1Id, int node2Id, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
         {
             Id = id;
             NodeIds = new List<int> { node1Id,node2Id };
             Material = material;
             CrossSection = crossSection;
+            BetaAngle = betaAngle;
         }
         
         /// <summary>
-        /// 線要素の局所座標系を計算
-        /// LocalAxisX: 部材軸方向（始点→終点）
-        /// LocalAxisZ: LocalAxisプロパティから計算した局所Z軸
-        /// LocalAxisY: Z軸×X軸の外積
+        /// 線要素の局所座標系を計算（β角方式）
+        /// LocalAxisX: 部材軸方向（節点1→節点2）
+        /// LocalAxisZ: β角を使用して計算した局所Z軸
+        /// LocalAxisY: 右手法則により自動決定（LocalAxisZ × LocalAxisX）
         /// </summary>
         public override void CalcLocalAxis(List<Node> nodes)
         {
@@ -63,7 +68,7 @@ namespace FEMur.Elements
             if (node2 == null)
                 throw new ArgumentException($"LineElement(Id={Id}): Node with Id={node2Id} not found.");
 
-            // 部材軸方向ベクトル（X軸）を計算
+            // 部材軸方向ベクトル（X軸）を計算：節点1 → 節点2
             double dx = node2.Position.X - node1.Position.X;
             double dy = node2.Position.Y - node1.Position.Y;
             double dz = node2.Position.Z - node1.Position.Z;
@@ -80,51 +85,75 @@ namespace FEMur.Elements
             double exy = dy / L;
             double exz = dz / L;
 
-            // 参照ベクトルを取得（デフォルトは{0,0,1}、隣接要素との平均化は外部で実施）
-            double[] vrefArr = LocalAxis ?? new double[3] { 0, 0, 1 };
-            double vx = vrefArr[0];
-            double vy = vrefArr[1];
-            double vz = vrefArr[2];
+            // β角をラジアンに変換
+            double betaRad = BetaAngle * Math.PI / 180.0;
+            double cosBeta = Math.Cos(betaRad);
+            double sinBeta = Math.Sin(betaRad);
 
-            // 局所Z軸を計算（参照ベクトルから部材軸方向成分を除去）
-            double dot = vx * exx + vy * exy + vz * exz;
-            double ezx = vx - dot * exx;
-            double ezy = vy - dot * exy;
-            double ezz = vz - dot * exz;
-            double ezn = Math.Sqrt(ezx * ezx + ezy * ezy + ezz * ezz);
+            // 要素座標系x軸が全体座標系Z軸に平行かチェック
+            // |ex · (0,0,1)| ≈ 1 の場合、平行
+            double dotWithGlobalZ = exz;
+            bool isParallelToGlobalZ = Math.Abs(Math.Abs(dotWithGlobalZ) - 1.0) < 1e-6;
 
-            // 参照ベクトルが部材軸と平行な場合、別の参照ベクトルを試す
-            if (ezn < 1e-12)
+            double ezx, ezy, ezz;
+
+            if (isParallelToGlobalZ)
             {
-                // Y軸方向を試す
-                vx = 0; vy = 1; vz = 0;
-                dot = vx * exx + vy * exy + vz * exz;
-                ezx = vx - dot * exx;
-                ezy = vy - dot * exy;
-                ezz = vz - dot * exz;
-                ezn = Math.Sqrt(ezx * ezx + ezy * ezy + ezz * ezz);
-
-                if (ezn < 1e-12)
+                // 要素座標系x軸が全体座標系Z軸に平行の場合
+                // β角は全体座標系X軸と要素座標系z軸が成す角度
+                // 局所Z軸は、全体座標系のXY平面内でX軸からβ角回転した方向
+                ezx = cosBeta;
+                ezy = sinBeta;
+                ezz = 0.0;
+            }
+            else
+            {
+                // 要素座標系x軸が全体座標系Z軸に平行でない場合
+                // β角は全体座標系Z軸と要素座標系xz平面が成す角度
+                
+                // 局所x軸と全体Z軸を含む平面の法線ベクトル n = ex × (0,0,1)
+                double nx = exy;   // = exy * 1.0 - exz * 0.0
+                double ny = -exx;  // = exz * 0.0 - exx * 1.0
+                double nz = 0.0;   // = exx * 0.0 - exy * 0.0
+                double nNorm = Math.Sqrt(nx * nx + ny * ny);
+                
+                if (nNorm < 1e-12)
                 {
-                    // X軸方向を試す
-                    vx = 1; vy = 0; vz = 0;
-                    dot = vx * exx + vy * exy + vz * exz;
-                    ezx = vx - dot * exx;
-                    ezy = vy - dot * exy;
-                    ezz = vz - dot * exz;
-                    ezn = Math.Sqrt(ezx * ezx + ezy * ezy + ezz * ezz);
-
-                    if (ezn < 1e-12)
-                        throw new ArgumentException($"LineElement(Id={Id}) cannot build local axes (all reference vectors parallel to element).");
+                    throw new ArgumentException($"LineElement(Id={Id}) failed to compute local coordinate system.");
                 }
+                
+                nx /= nNorm;
+                ny /= nNorm;
+                
+                // 全体Z軸を局所x軸に垂直な平面に射影したベクトル v
+                // v = (0,0,1) - ((0,0,1)·ex)ex
+                double vx = -dotWithGlobalZ * exx;
+                double vy = -dotWithGlobalZ * exy;
+                double vz = 1.0 - dotWithGlobalZ * exz;
+                double vNorm = Math.Sqrt(vx * vx + vy * vy + vz * vz);
+                
+                if (vNorm < 1e-12)
+                {
+                    throw new ArgumentException($"LineElement(Id={Id}) failed to compute reference vector.");
+                }
+                
+                vx /= vNorm;
+                vy /= vNorm;
+                vz /= vNorm;
+                
+                // 局所Z軸 = v*cos(β) + n*sin(β)
+                ezx = vx * cosBeta + nx * sinBeta;
+                ezy = vy * cosBeta + ny * sinBeta;
+                ezz = vz * cosBeta + nz * sinBeta;
+                
+                // 正規化
+                double ezNorm = Math.Sqrt(ezx * ezx + ezy * ezy + ezz * ezz);
+                ezx /= ezNorm;
+                ezy /= ezNorm;
+                ezz /= ezNorm;
             }
 
-            // 局所Z軸の正規化
-            ezx /= ezn;
-            ezy /= ezn;
-            ezz /= ezn;
-
-            // 局所Y軸を外積で計算: ey = ez × ex
+            // 局所Y軸を外積で計算: ey = ez × ex （右手法則）
             double eyx = ezy * exz - ezz * exy;
             double eyy = ezz * exx - ezx * exz;
             double eyz = ezx * exy - ezy * exx;
@@ -142,129 +171,6 @@ namespace FEMur.Elements
             LocalAxisX = new double[] { exx, exy, exz };
             LocalAxisY = new double[] { eyx, eyy, eyz };
             LocalAxisZ = new double[] { ezx, ezy, ezz };
-        }
-
-        /// <summary>
-        /// 連続した部材列の局所座標系を平滑化
-        /// 隣接要素の参照ベクトル（LocalAxisZ）を平均して滑らかな局所座標系を構築
-        /// </summary>
-        /// <param name="elements">全要素リスト</param>
-        /// <param name="nodes">全ノードリスト</param>
-        public static void SmoothLocalAxes(List<ElementBase> elements, List<Node> nodes)
-        {
-            // LineElement のみを抽出
-            var lineElements = elements.OfType<LineElement>().ToList();
-            if (lineElements.Count == 0) return;
-
-            // ノードごとに接続要素を記録
-            var nodeToElements = new Dictionary<int, List<LineElement>>();
-            foreach (var elem in lineElements)
-            {
-                if (elem.NodeIds == null || elem.NodeIds.Count < 2) continue;
-
-                foreach (var nodeId in elem.NodeIds)
-                {
-                    if (!nodeToElements.ContainsKey(nodeId))
-                        nodeToElements[nodeId] = new List<LineElement>();
-                    nodeToElements[nodeId].Add(elem);
-                }
-            }
-
-            // 各要素の初期局所座標系を計算（デフォルト参照ベクトル使用）
-            foreach (var elem in lineElements)
-            {
-                elem.CalcLocalAxis(nodes);
-            }
-
-            // 反復処理で参照ベクトルを平滑化（2回繰り返し）
-            for (int iteration = 0; iteration < 2; iteration++)
-            {
-                var newLocalAxes = new Dictionary<int, double[]>();
-
-                foreach (var elem in lineElements)
-                {
-                    if (elem.NodeIds == null || elem.NodeIds.Count < 2) continue;
-                    if (elem.LocalAxisZ == null) continue;
-
-                    // 隣接要素を取得
-                    var adjacentElements = new List<LineElement>();
-                    foreach (var nodeId in elem.NodeIds)
-                    {
-                        if (nodeToElements.ContainsKey(nodeId))
-                        {
-                            foreach (var adjElem in nodeToElements[nodeId])
-                            {
-                                if (adjElem.Id != elem.Id && !adjacentElements.Contains(adjElem))
-                                {
-                                    adjacentElements.Add(adjElem);
-                                }
-                            }
-                        }
-                    }
-
-                    // 隣接要素がない場合は現在の参照ベクトルを維持
-                    if (adjacentElements.Count == 0)
-                    {
-                        newLocalAxes[elem.Id] = elem.LocalAxisZ;
-                        continue;
-                    }
-
-                    // 隣接要素のLocalAxisZを平均
-                    double sumX = elem.LocalAxisZ[0];
-                    double sumY = elem.LocalAxisZ[1];
-                    double sumZ = elem.LocalAxisZ[2];
-                    int count = 1;
-
-                    foreach (var adjElem in adjacentElements)
-                    {
-                        if (adjElem.LocalAxisZ == null) continue;
-
-                        // 方向が逆転している場合は符号を反転
-                        double dot = elem.LocalAxisZ[0] * adjElem.LocalAxisZ[0] +
-                                     elem.LocalAxisZ[1] * adjElem.LocalAxisZ[1] +
-                                     elem.LocalAxisZ[2] * adjElem.LocalAxisZ[2];
-
-                        if (dot < 0)
-                        {
-                            sumX -= adjElem.LocalAxisZ[0];
-                            sumY -= adjElem.LocalAxisZ[1];
-                            sumZ -= adjElem.LocalAxisZ[2];
-                        }
-                        else
-                        {
-                            sumX += adjElem.LocalAxisZ[0];
-                            sumY += adjElem.LocalAxisZ[1];
-                            sumZ += adjElem.LocalAxisZ[2];
-                        }
-                        count++;
-                    }
-
-                    // 平均ベクトルを正規化
-                    double avgX = sumX / count;
-                    double avgY = sumY / count;
-                    double avgZ = sumZ / count;
-                    double norm = Math.Sqrt(avgX * avgX + avgY * avgY + avgZ * avgZ);
-
-                    if (norm > 1e-12)
-                    {
-                        newLocalAxes[elem.Id] = new double[] { avgX / norm, avgY / norm, avgZ / norm };
-                    }
-                    else
-                    {
-                        newLocalAxes[elem.Id] = elem.LocalAxisZ;
-                    }
-                }
-
-                // 平滑化された参照ベクトルを設定して再計算
-                foreach (var elem in lineElements)
-                {
-                    if (newLocalAxes.ContainsKey(elem.Id))
-                    {
-                        elem.LocalAxis = newLocalAxes[elem.Id];
-                        elem.CalcLocalAxis(nodes);
-                    }
-                }
-            }
         }
 
         // 座標変換行列: v_g = T v_l（T は diag(R,R,R,R)）
@@ -304,7 +210,20 @@ namespace FEMur.Elements
         public LineElement(SerializationInfo info, StreamingContext context)
         :base(info, context)
         {
-            throw new NotImplementedException();
+            try
+            {
+                BetaAngle = info.GetDouble("BetaAngle");
+            }
+            catch
+            {
+                BetaAngle = 0.0;
+            }
+        }
+
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+            info.AddValue("BetaAngle", BetaAngle);
         }
     }
 }

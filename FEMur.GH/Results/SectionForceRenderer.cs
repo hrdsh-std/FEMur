@@ -97,28 +97,29 @@ namespace FEMurGH.Results
                 if (!TryPickForce(forceType, es, out double vi, out double vj))
                     continue;
 
-                // 図式オフセット方向:
-                // 局所Y方向の荷重(Fy, Mz)と軸力(Fx)、ねじりモーメント(Mx)は局所Y方向に描画
-                // 局所Z方向の荷重(Fz, My)は局所Z方向に描画
-                // i端: 各方向の正方向を正とする
-                // j端: 各方向の負方向を正とする（符号を反転）
+                // 図式オフセット方向の決定
                 Vector3d offsetDir_i, offsetDir_j;
                 
                 switch (forceType)
                 {
+                    case SectionForceView.SectionForceType.Fx:
+                    case SectionForceView.SectionForceType.Fy:
                     case SectionForceView.SectionForceType.Fz:
-                    case SectionForceView.SectionForceType.My:
-                        // 局所Z方向に描画
+                        // Fx, Fy, Fz: すべて局所Z軸方向に描画
                         offsetDir_i = ezVec;  // i端: +Z方向が正
                         offsetDir_j = -ezVec; // j端: -Z方向が正
                         break;
                     
-                    case SectionForceView.SectionForceType.Fx:
-                    case SectionForceView.SectionForceType.Fy:
+                    case SectionForceView.SectionForceType.My:
+                        // My（曲げモーメント、Z軸回り）: 局所Z軸方向に描画
+                        offsetDir_i = ezVec;  // i端: +Z方向が正
+                        offsetDir_j = -ezVec; // j端: -Z方向が正
+                        break;
+                    
                     case SectionForceView.SectionForceType.Mx:
                     case SectionForceView.SectionForceType.Mz:
                     default:
-                        // 局所Y方向に描画
+                        // Mx（ねじり）、Mz（曲げモーメント、Y軸回り）: 局所Y軸方向に描画
                         offsetDir_i = eyVec;  // i端: +Y方向が正
                         offsetDir_j = -eyVec; // j端: -Y方向が正
                         break;
@@ -128,11 +129,12 @@ namespace FEMurGH.Results
                 double hi = vi * scale;
                 double hj = vj * scale;
 
-                // 図式ポリライン（i端とj端で異なるオフセット方向を使用）
-                var poly = new Polyline(2);
-                poly.Add(p0 + offsetDir_i * hi);
-                poly.Add(p1 + offsetDir_j * hj);
+                // 応力線の端点
+                Point3d stressPoint_i = p0 + offsetDir_i * hi;
+                Point3d stressPoint_j = p1 + offsetDir_j * hj;
 
+                // 図式ポリライン
+                var poly = new Polyline(new[] { stressPoint_i, stressPoint_j });
                 preview.Diagrams.Add(new DiagramLine
                 {
                     Polyline = poly,
@@ -142,16 +144,62 @@ namespace FEMurGH.Results
 
                 if (showFilled)
                 {
-                    var m = BuildQuadMesh(p0, p1, p0 + offsetDir_i * hi, p1 + offsetDir_j * hj, color);
-                    preview.FilledMeshes.Add(m);
+                    // 部材線と応力線で囲まれる領域を塗りつぶす
+                    // 4点: p0, p1, stressPoint_j, stressPoint_i の順で閉じた領域を作成
+                    
+                    // 応力線が部材線をまたぐかチェック
+                    // 部材線に対する応力線の相対位置を計算
+                    Vector3d memberVec = p1 - p0;
+                    Vector3d stress_i_Vec = stressPoint_i - p0;
+                    Vector3d stress_j_Vec = stressPoint_j - p1;
+                    
+                    // 応力点が部材線の反対側にあるかチェック
+                    // offsetDir_i と offsetDir_j は逆方向なので、hi と hj の符号が同じなら反対側
+                    bool crossesMemberLine = (hi * hj > 0);
+
+                    if (!crossesMemberLine)
+                    {
+                        // 応力線が部材線をまたがない場合：単純な四角形
+                        var m = BuildQuadMesh(p0, p1, stressPoint_j, stressPoint_i, color);
+                        preview.FilledMeshes.Add(m);
+                    }
+                    else
+                    {
+                        // 応力線が部材線をまたぐ場合
+                        // 応力線と部材線の交点を計算
+                        // 線形補間: stressPoint_i から stressPoint_j への線が部材線と交わる点
+                        
+                        // パラメトリック表現:
+                        // 応力線: S(t) = stressPoint_i + t * (stressPoint_j - stressPoint_i), t ∈ [0, 1]
+                        // 部材線: M(s) = p0 + s * (p1 - p0), s ∈ [0, 1]
+                        // 
+                        // 簡略化: 応力線が部材線を横切る位置を、hi と hj の比から計算
+                        // 交点のパラメータ t = |hi| / (|hi| + |hj|)
+                        
+                        double absHi = Math.Abs(hi);
+                        double absHj = Math.Abs(hj);
+                        double t = absHi / (absHi + absHj);
+                        
+                        // 部材線上の交点
+                        Point3d crossPoint = p0 + memberVec * t;
+                        
+                        // 2つの三角形に分割
+                        // 三角形1: p0, crossPoint, stressPoint_i
+                        var m1 = BuildTriangleMesh(p0, crossPoint, stressPoint_i, color);
+                        preview.FilledMeshes.Add(m1);
+                        
+                        // 三角形2: crossPoint, p1, stressPoint_j
+                        var m2 = BuildTriangleMesh(crossPoint, p1, stressPoint_j, color);
+                        preview.FilledMeshes.Add(m2);
+                    }
                 }
 
                 if (showNumbers)
                 {
                     // 少し法線方向に離して重なり回避
                     var offSmall = 0.03;
-                    var p0lbl = p0 + offsetDir_i * (hi + offSmall);
-                    var p1lbl = p1 + offsetDir_j * (hj + offSmall);
+                    var p0lbl = stressPoint_i + offsetDir_i * offSmall;
+                    var p1lbl = stressPoint_j + offsetDir_j * offSmall;
 
                     preview.Labels.Add(new ForceLabel
                     {
@@ -226,8 +274,8 @@ namespace FEMurGH.Results
             var mesh = new Mesh();
             int i0 = mesh.Vertices.Add(b0);
             int i1 = mesh.Vertices.Add(b1);
-            int i2 = mesh.Vertices.Add(t1);
-            int i3 = mesh.Vertices.Add(t0);
+            int i2 = mesh.Vertices.Add(t0);
+            int i3 = mesh.Vertices.Add(t1);
 
             mesh.Faces.AddFace(i0, i1, i2, i3);
             mesh.Normals.ComputeNormals();
@@ -238,7 +286,31 @@ namespace FEMurGH.Results
             {
                 Mesh = mesh,
                 Material = mat,
-                Outline = new Polyline(new[] { b0, b1, t1, t0, b0 }),
+                Outline = new Polyline(new[] { b0, b1, t0, t1, b0 }),
+                OutlineColor = Color.FromArgb(160, color)
+            };
+        }
+
+        /// <summary>
+        /// 三角形メッシュを作成
+        /// </summary>
+        private static FilledDiagram BuildTriangleMesh(Point3d p0, Point3d p1, Point3d p2, Color color)
+        {
+            var mesh = new Mesh();
+            int i0 = mesh.Vertices.Add(p0);
+            int i1 = mesh.Vertices.Add(p1);
+            int i2 = mesh.Vertices.Add(p2);
+
+            mesh.Faces.AddFace(i0, i1, i2);
+            mesh.Normals.ComputeNormals();
+            mesh.Compact();
+
+            var mat = new DisplayMaterial(color, 0.6);
+            return new FilledDiagram
+            {
+                Mesh = mesh,
+                Material = mat,
+                Outline = new Polyline(new[] { p0, p1, p2, p0 }),
                 OutlineColor = Color.FromArgb(160, color)
             };
         }

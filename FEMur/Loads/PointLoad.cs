@@ -32,13 +32,13 @@ namespace FEMur.Loads
             this.Moment = other.Moment;
         }
 
-        public PointLoad(int idx, Vector3 force, Vector3 moment, bool local)
-            : base(idx, force, moment, local)
+        public PointLoad(int idx, Vector3 force, Vector3 moment)
+            : base(idx, force, moment)
         {
         }
 
-        public PointLoad(Node node, Vector3 force, Vector3 moment, bool local)
-            : base(node?.Id ?? throw new ArgumentNullException(nameof(node)), force, moment, local)
+        public PointLoad(Node node, Vector3 force, Vector3 moment)
+            : base(node?.Id ?? throw new ArgumentNullException(nameof(node)), force, moment)
         {
         }
 
@@ -56,7 +56,7 @@ namespace FEMur.Loads
         }
         public override string ToString()
         {
-            return $"Point Load: Force = {Force}, Moment = {Moment}, NodeId = {NodeId}, Local = {Local}";
+            return $"Point Load: Force = {Force}, Moment = {Moment}, NodeId = {NodeId}";
         }
     }
 }
