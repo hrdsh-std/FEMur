@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace FEMur.Geometry
 {
-    public struct Point3 : IEquatable<Point3>,IComparable<Point3>
+    public struct Point3 : IEquatable<Point3>, IComparable<Point3>
     {
         #region Properties
         public double X { get; set; }
@@ -87,6 +87,33 @@ namespace FEMur.Geometry
         {
             return X == other.X && Y == other.Y && Z == other.Z;
         }
+
+        /// <summary>
+        /// 許容誤差を考慮して2つのPoint3が等しいかを判定
+        /// </summary>
+        /// <param name="other">比較対象のPoint3</param>
+        /// <param name="tolerance">許容誤差</param>
+        /// <returns>許容誤差以内で等しい場合はtrue</returns>
+        public bool EqualsWithTolerance(Point3 other, double tolerance)
+        {
+            return Math.Abs(X - other.X) < tolerance &&
+                   Math.Abs(Y - other.Y) < tolerance &&
+                   Math.Abs(Z - other.Z) < tolerance;
+        }
+
+        /// <summary>
+        /// 2点間の距離を計算
+        /// </summary>
+        /// <param name="other">もう一方の点</param>
+        /// <returns>距離</returns>
+        public double DistanceTo(Point3 other)
+        {
+            double dx = X - other.X;
+            double dy = Y - other.Y;
+            double dz = Z - other.Z;
+            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
         public override bool Equals(object other)
         {
             if (other is Point3 point)
@@ -95,8 +122,7 @@ namespace FEMur.Geometry
             }
             return false;
         }
-        public override int GetHashCode() => Tuple.Create(X,Y,Z).GetHashCode();
-
+        public override int GetHashCode() => Tuple.Create(X, Y, Z).GetHashCode();
 
         public int CompareTo(Point3 other)
         {
@@ -158,7 +184,51 @@ namespace FEMur.Geometry
             return a.X != b.X || a.Y != b.Y || a.Z != b.Z;
         }
 
+        public override string ToString()
+        {
+            return $"({X}, {Y}, {Z})";
+        }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Point3の座標比較器（許容誤差付き）
+    /// Dictionary等のコレクションで許容誤差を考慮した等価性比較を行う
+    /// </summary>
+    public class Point3Comparer : IEqualityComparer<Point3>
+    {
+        private readonly double _tolerance;
+
+        /// <summary>
+        /// Point3Comparerを初期化
+        /// </summary>
+        /// <param name="tolerance">許容誤差（デフォルト: 0.001）</param>
+        public Point3Comparer(double tolerance = 0.001)
+        {
+            _tolerance = tolerance;
+        }
+
+        /// <summary>
+        /// 2つのPoint3が許容誤差以内で等しいかを判定
+        /// </summary>
+        public bool Equals(Point3 x, Point3 y)
+        {
+            return x.EqualsWithTolerance(y, _tolerance);
+        }
+
+        /// <summary>
+        /// Point3のハッシュコードを計算（許容誤差を考慮）
+        /// </summary>
+        public int GetHashCode(Point3 obj)
+        {
+            // 許容誤差を考慮したハッシュコード生成
+            // 座標を許容誤差でスケーリングして整数化
+            int scale = (int)(1.0 / _tolerance);
+            int hashX = ((int)(obj.X * scale)).GetHashCode();
+            int hashY = ((int)(obj.Y * scale)).GetHashCode();
+            int hashZ = ((int)(obj.Z * scale)).GetHashCode();
+            return hashX ^ (hashY << 2) ^ (hashZ >> 2);
+        }
     }
 }

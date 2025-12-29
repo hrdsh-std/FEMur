@@ -37,5 +37,20 @@ namespace FEMur.Materials
         {
             return $"{base.ToString()}, Young's Modulus: {E} Pa, Poisson's Ratio: {nu}";
         }
+
+        //鉄を返す静的メソッド
+        public static Material_Isotropic Steel()
+        {
+            // 単位は N/mm^2, 密度は未使用なら適当でOK
+            return new Material_Isotropic(
+                id: 0,
+                family: "Isotropic",
+                name: "Steel",
+                E: 210000.0,   // 210 GPa = 210000 N/mm^2
+                nu: 0.3,
+                density: 7.85e-9 // t/mm^3 等。未使用なら 0 でも可
+            );
+        }
+
     }
 }

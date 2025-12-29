@@ -10,14 +10,16 @@ using MathNet.Numerics.LinearAlgebra;
 using FEMur.Nodes;
 using FEMur.Materials;
 using FEMur.CrossSections;
+using FEMur.Geometry;
 
 
 namespace FEMur.Elements
 {
     public abstract class ElementBase : CommonObject, ICloneable, ISerializable
     {
-        public int Id { get; set; }
+        public int Id { get; set; } // setterを追加（自動採番のため）
         public List<int> NodeIds { get; set; }
+        public List<Point3> Points { get; set; } = null;
         public Material Material { get; set; }
         public CrossSection CrossSection { get; set; }
         internal double Length { get; set; }
@@ -38,11 +40,39 @@ namespace FEMur.Elements
 
         protected ElementBase()
         {
+            Id = -1; // 未割り当て
         }
-        protected ElementBase(int id, List<int> nodeIds, Material material, CrossSection_Beam crossSection)
+
+        // IDなしコンストラクタ（推奨）
+        protected ElementBase(List<int> nodeIds, Material material, CrossSection crossSection)
+        {
+            Id = -1; // 未割り当て
+            NodeIds = nodeIds;
+            Material = material;
+            CrossSection = crossSection;
+        }
+
+        protected ElementBase(List<Point3> points, Material material, CrossSection crossSection)
+        {
+            Id = -1; // 未割り当て
+            Points = points;
+            Material = material;
+            CrossSection = crossSection;
+        }
+
+        // ID指定コンストラクタ（既存コードとの互換性のため残す）
+        protected ElementBase(int id, List<int> nodeIds, Material material, CrossSection crossSection)
         {
             Id = id;
             NodeIds = nodeIds;
+            Material = material;
+            CrossSection = crossSection;
+        }
+
+        protected ElementBase(int id, List<Point3> points, Material material, CrossSection crossSection)
+        {
+            Id = id;
+            Points = points;
             Material = material;
             CrossSection = crossSection;
         }
@@ -72,7 +102,6 @@ namespace FEMur.Elements
             ez = LocalAxisZ;
             return ex != null && ey != null && ez != null;
         }
-
 
         //Tostringの実装を強制
         public abstract override string ToString();

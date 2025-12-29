@@ -1,4 +1,5 @@
 ﻿using FEMur.CrossSections;
+using FEMur.Geometry;
 using FEMur.Materials;
 using FEMur.Nodes;
 using FEMur.Results;
@@ -13,7 +14,24 @@ namespace FEMur.Elements
     public class BeamElement : LineElement, ISerializable
     {
         public BeamElement() { }
-        
+
+        // IDなしコンストラクタ（推奨）
+        public BeamElement(Point3 point1, Point3 point2, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
+            : base(point1, point2, material, crossSection, betaAngle)
+        {
+        }
+
+        public BeamElement(Node node1, Node node2, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
+            : base(node1, node2, material, crossSection, betaAngle)
+        {
+        }
+
+        public BeamElement(List<int> nodeIds, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
+            : base(nodeIds, material, crossSection, betaAngle)
+        {
+        }
+
+        // ID指定コンストラクタ（既存コードとの互換性のため）
         public BeamElement(int id, int node1Id, int node2Id, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
             : base(id, node1Id, node2Id, material, crossSection, betaAngle)
         {
@@ -21,6 +39,11 @@ namespace FEMur.Elements
         
         public BeamElement(int id, Node node1, Node node2, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
             : base(id, node1.Id, node2.Id, material, crossSection, betaAngle)
+        {
+        }
+
+        public BeamElement(int id, Point3 point1, Point3 point2, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
+            : base(id, point1, point2, material, crossSection, betaAngle)
         {
         }
         
@@ -31,12 +54,6 @@ namespace FEMur.Elements
 
         internal override Matrix<double> CalcLocalStiffness(List<Node> nodes)
         {
-            // 局所座標系が未計算の場合は計算
-            if (LocalAxisX == null || LocalAxisY == null || LocalAxisZ == null || Length <= 0)
-            {
-                CalcLocalAxis(nodes);
-            }
-
             var cs = (CrossSection_Beam)this.CrossSection;
 
             double E = this.Material.E;
@@ -128,8 +145,6 @@ namespace FEMur.Elements
             return ke;
         }
 
-
-
         /// <summary>
         /// 要素の局所変位ベクトルから断面力（応力）を計算
         /// </summary>
@@ -164,10 +179,11 @@ namespace FEMur.Elements
 
             return stress;
         }
+
         // Tostringのoverride
         public override string ToString()
         {
-               return $"BeamElement(Id:{Id}, Node1:{NodeIds[0]}, Node2:{NodeIds[1]}, Material:{Material.Name}, CrossSection:{CrossSection.Name}, β:{BetaAngle:F1}°)";
+            return $"BeamElement(From:{Points[0].ToString()},To:{Points[1].ToString()}, Material:{Material.Name}, CrossSection:{CrossSection.Name}, β:{BetaAngle:F1}°)";
         }
     }
 }

@@ -11,7 +11,7 @@ namespace FEMur.Utilities
     public static class ElementCoordinateSystemHelper
     {
         /// <summary>
-        /// モデル内の全LineElement要素に対して要素座標系を設定する
+        /// モデル内の全LineElement要素に対して要素座標系を設定する（Model初期化時に必ず実行）
         /// </summary>
         /// <param name="model">対象のモデル</param>
         public static void SetupElementCoordinateSystems(Model model)
@@ -24,12 +24,13 @@ namespace FEMur.Utilities
 
             foreach (var element in lineElements)
             {
+                // Model初期化時に必ずCalcLocalAxisを実行
                 SetupElementCoordinateSystem(element, model);
             }
         }
 
         /// <summary>
-        /// 個別要素の座標系を設定する
+        /// 個別要素の座標系を設定する（必ずCalcLocalAxisを実行）
         /// </summary>
         /// <param name="element">対象要素</param>
         /// <param name="model">モデル</param>
@@ -45,6 +46,25 @@ namespace FEMur.Utilities
             if (iNode == null || jNode == null)
                 return;
 
+            // LineElement.CalcLocalAxisメソッドを必ず実行
+            // β角の設定有無に関わらず、統一的な計算ロジックを使用
+            try
+            {
+                element.CalcLocalAxis(model.Nodes);
+            }
+            catch (Exception ex)
+            {
+                // CalcLocalAxisが失敗した場合は、フォールバック処理
+                System.Diagnostics.Debug.WriteLine($"Element {element.Id}: CalcLocalAxis failed - {ex.Message}. Using fallback.");
+                SetupElementCoordinateSystemFallback(element, iNode, jNode);
+            }
+        }
+
+        /// <summary>
+        /// CalcLocalAxisが失敗した場合のフォールバック処理
+        /// </summary>
+        private static void SetupElementCoordinateSystemFallback(LineElement element, Node iNode, Node jNode)
+        {
             // 要素x軸方向ベクトル（単位ベクトル）
             var elementX = new double[3];
             elementX[0] = jNode.Position.X - iNode.Position.X;
@@ -62,14 +82,6 @@ namespace FEMur.Utilities
             elementX[1] /= length;
             elementX[2] /= length;
 
-            // BetaAngleが設定されている場合は、LineElementのCalcLocalAxisメソッドに委譲
-            if (Math.Abs(element.BetaAngle) > 1e-10)
-            {
-                element.CalcLocalAxis(model.Nodes);
-                return;
-            }
-
-            // BetaAngleが設定されていない場合は、従来のロジックで計算
             // 全体Z軸ベクトル
             var globalZ = new double[] { 0, 0, 1 };
 
@@ -83,8 +95,6 @@ namespace FEMur.Utilities
             if (dotProduct < 0.999) // 要素x軸が全体Zに平行でない場合
             {
                 // 要素x軸に垂直で全体Z軸を含む平面内のベクトルを計算
-                // n = v2 - (v2?v1)/(v1?v1) * v1
-                // ここで v1 = elementX, v2 = globalZ
                 double dot_v2_v1 = globalZ[0] * elementX[0] + 
                                    globalZ[1] * elementX[1] + 
                                    globalZ[2] * elementX[2];
@@ -104,20 +114,8 @@ namespace FEMur.Utilities
             }
             else // 要素x軸が全体Zに平行な場合
             {
-                // i端またはj端の節点を共有する他の要素を検索
-                var connectedElement = FindConnectedElement(element, model, iNode.Id, jNode.Id);
-
-                if (connectedElement != null)
-                {
-                    // 接続要素が見つかった場合、3点で平面を定義
-                    elementZ = CalculateElementZFromConnectedElement(
-                        iNode, jNode, connectedElement, model, elementX);
-                }
-                else
-                {
-                    // 接続要素がない場合は全体X方向を要素z座標とする
-                    elementZ = new double[] { 1, 0, 0 };
-                }
+                // 全体X方向を要素z座標とする
+                elementZ = new double[] { 1, 0, 0 };
             }
 
             // 要素y軸を計算（elementY = elementZ × elementX）
@@ -128,67 +126,6 @@ namespace FEMur.Utilities
             element.LocalAxisX = elementX;
             element.LocalAxisY = elementY;
             element.LocalAxisZ = elementZ;
-        }
-
-        /// <summary>
-        /// 指定ノードを共有する他の要素を検索
-        /// </summary>
-        private static LineElement FindConnectedElement(
-            LineElement targetElement, Model model, int iNodeId, int jNodeId)
-        {
-            return model.Elements
-                .OfType<LineElement>()
-                .Where(e => e != targetElement && e.NodeIds != null && e.NodeIds.Count >= 2)
-                .FirstOrDefault(e => 
-                    e.NodeIds.Contains(iNodeId) || e.NodeIds.Contains(jNodeId));
-        }
-
-        /// <summary>
-        /// 接続要素から要素Z軸を計算
-        /// </summary>
-        private static double[] CalculateElementZFromConnectedElement(
-            Node iNode, Node jNode, LineElement connectedElement, Model model, double[] elementX)
-        {
-            // 接続要素の他端ノードを取得
-            int? otherNodeId = null;
-            
-            if (connectedElement.NodeIds.Contains(iNode.Id))
-            {
-                otherNodeId = connectedElement.NodeIds.FirstOrDefault(id => id != iNode.Id);
-            }
-            else if (connectedElement.NodeIds.Contains(jNode.Id))
-            {
-                otherNodeId = connectedElement.NodeIds.FirstOrDefault(id => id != jNode.Id);
-            }
-
-            if (!otherNodeId.HasValue)
-                return new double[] { 1, 0, 0 }; // フォールバック
-
-            var otherNode = model.Nodes.FirstOrDefault(n => n.Id == otherNodeId.Value);
-            if (otherNode == null)
-                return new double[] { 1, 0, 0 }; // フォールバック
-
-            // 3点で平面を定義
-            // i-j-otherの順で平面の法線ベクトルを計算
-            var vec1 = new double[3];
-            vec1[0] = jNode.Position.X - iNode.Position.X;
-            vec1[1] = jNode.Position.Y - iNode.Position.Y;
-            vec1[2] = jNode.Position.Z - iNode.Position.Z;
-
-            var vec2 = new double[3];
-            vec2[0] = otherNode.Position.X - iNode.Position.X;
-            vec2[1] = otherNode.Position.Y - iNode.Position.Y;
-            vec2[2] = otherNode.Position.Z - iNode.Position.Z;
-
-            // 平面の法線ベクトル（vec1 × vec2）
-            var normal = CrossProduct(vec1, vec2);
-            Normalize(normal);
-
-            // 要素Z軸 = 法線 × 要素X軸
-            var elementZ = CrossProduct(normal, elementX);
-            Normalize(elementZ);
-
-            return elementZ;
         }
 
         /// <summary>

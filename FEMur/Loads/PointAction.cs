@@ -1,47 +1,37 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
+using FEMur.Nodes;
 using FEMur.Geometry;
 
 namespace FEMur.Loads
 {
-    public abstract class PointAction : Load, ISerializable
+    public abstract class PointAction : Load
     {
-        protected Vector3 ActionTranslation { get; set; }
-        protected Vector3 ActionRotation { get; set; }
-        public int NodeId { get; set; }
+        public int NodeId { get; set; } // setterを追加（自動設定のため）
+        public Point3? Position { get; protected set; } // Point3による指定を保持
 
-        public PointAction() { }
-        public PointAction(PointAction other)
-            : base(other)
+        protected PointAction() { }
+
+        // Point3ベースコンストラクタ（Grasshopper用）
+        protected PointAction(Point3 position)
         {
-            this.ActionTranslation = other.ActionTranslation;
-            this.ActionRotation = other.ActionRotation;
-            this.NodeId = other.NodeId;
+            NodeId = -1; // 未割り当て
+            Position = position;
         }
 
-        public PointAction(int idx, Vector3 translation, Vector3 rotation)
+        // NodeIDベースコンストラクタ（既存）
+        protected PointAction(int nodeId)
         {
-            this.NodeId = idx;
-            this.ActionTranslation = translation;
-            this.ActionRotation = rotation;
+            NodeId = nodeId;
         }
-        protected PointAction(SerializationInfo info, StreamingContext context)
-            : base(info, context)
+
+        // Nodeベースコンストラクタ（既存）
+        protected PointAction(Node node)
         {
-            ActionTranslation = (Vector3)info.GetValue("ActionTranslation", typeof(Vector3));
-            ActionRotation = (Vector3)info.GetValue("ActionRotation", typeof(Vector3));
-            NodeId = info.GetInt32("NodeId");
-        }
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            base.GetObjectData(info, context);
-            info.AddValue("ActionTranslation", ActionTranslation);
-            info.AddValue("ActionRotation", ActionRotation);
-            info.AddValue("NodeId", NodeId);
+            NodeId = node.Id;
         }
     }
 }

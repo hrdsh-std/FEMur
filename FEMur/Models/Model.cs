@@ -28,6 +28,9 @@ namespace FEMur.Models
         // 追加: 計算済みフラグ
         public bool IsSolved { get; set; }
 
+        // ノード自動生成時の許容誤差
+        private const double NodeTolerance = 0.001;
+
         public Model()
         {
             Nodes = new List<Node>();
@@ -43,15 +46,18 @@ namespace FEMur.Models
             List<Support> supports,
             List<Load> loads)
         {
-            Nodes = nodes;
+            Nodes = nodes ?? new List<Node>();
             Elements = elements;
             Supports = supports;
             Loads = loads;
             Result = null;
             IsSolved = false;
             
-            // 要素座標系の設定
-            ElementCoordinateSystemHelper.SetupElementCoordinateSystems(this);
+            // モデルの検証（自動ノード生成を含む）
+            ValidateAndRepairModel();
+            
+            // 要素座標系の設定（必ずCalcLocalAxisが実行される）
+            ElementCoordinateSystemHelper.SetupElementCoordinateSystems(this);  // ✅ ここで計算済み
         }
 
         public Model(Model other)
@@ -62,6 +68,9 @@ namespace FEMur.Models
             this.Loads = other.Loads;
             this.Result = other.Result;
             this.IsSolved = other.IsSolved;
+            
+            // モデルの検証（自動ノード生成を含む）
+            ValidateAndRepairModel();
             
             // 要素座標系の設定
             ElementCoordinateSystemHelper.SetupElementCoordinateSystems(this);
@@ -87,8 +96,283 @@ namespace FEMur.Models
                 IsSolved = false;
             }
             
+            // モデルの検証（自動ノード生成を含む）
+            ValidateAndRepairModel();
+            
             // 要素座標系の設定
             ElementCoordinateSystemHelper.SetupElementCoordinateSystems(this);
+        }
+
+        /// <summary>
+        /// モデルの整合性を検証し、必要に応じて修復（ノード自動生成・ID自動採番）
+        /// </summary>
+        /// <exception cref="InvalidOperationException">修復不可能な不整合がある場合</exception>
+        private void ValidateAndRepairModel()
+        {
+            var errors = new List<string>();
+            var warnings = new List<string>();
+
+            // Nodesがnullの場合は初期化
+            if (Nodes == null)
+            {
+                Nodes = new List<Node>();
+            }
+
+            if (Elements == null)
+            {
+                Elements = new List<ElementBase>();
+            }
+
+            // === ノードID自動採番 ===
+            int nextNodeId = 0;
+            var nodeByCoordinate = new Dictionary<Point3, Node>(new Point3Comparer(NodeTolerance));
+            var nodeById = new Dictionary<int, Node>();
+
+            // 既存ノードのIDチェックと再採番
+            foreach (var node in Nodes)
+            {
+                if (node.Id < 0 || nodeById.ContainsKey(node.Id))
+                {
+                    node.Id = nextNodeId++;
+                    warnings.Add($"Node at ({node.Position.X:F3}, {node.Position.Y:F3}, {node.Position.Z:F3}): Auto-assigned ID = {node.Id}");
+                }
+                else
+                {
+                    if (node.Id >= nextNodeId)
+                    {
+                        nextNodeId = node.Id + 1;
+                    }
+                }
+
+                nodeById[node.Id] = node;
+
+                if (!nodeByCoordinate.ContainsKey(node.Position))
+                {
+                    nodeByCoordinate[node.Position] = node;
+                }
+                else
+                {
+                    warnings.Add($"Node ID {node.Id}: Duplicate coordinate with Node ID {nodeByCoordinate[node.Position].Id}");
+                }
+            }
+
+            // === 要素の検証と修復（ノード自動生成）=== 
+            // ★ Support/Load処理の前に移動
+            if (Elements != null)
+            {
+                for (int i = 0; i < Elements.Count; i++)
+                {
+                    var element = Elements[i];
+
+                    if (element.NodeIds == null || element.NodeIds.Count == 0)
+                    {
+                        if (element.Points != null && element.Points.Count > 0)
+                        {
+                            element.NodeIds = new List<int>();
+
+                            foreach (var point in element.Points)
+                            {
+                                Node node;
+
+                                if (nodeByCoordinate.TryGetValue(point, out node))
+                                {
+                                    element.NodeIds.Add(node.Id);
+                                }
+                                else
+                                {
+                                    node = new Node(nextNodeId++, point.X, point.Y, point.Z);
+                                    Nodes.Add(node);
+                                    nodeByCoordinate[point] = node;
+                                    nodeById[node.Id] = node;
+                                    element.NodeIds.Add(node.Id);
+                                }
+                            }
+
+                            warnings.Add($"Element[{i}]: Auto-generated {element.NodeIds.Count} nodes from Point3 coordinates.");
+                        }
+                        else
+                        {
+                            errors.Add($"Element[{i}]: NodeIds is null and Points is empty. Cannot create element without node information.");
+                            continue;
+                        }
+                    }
+
+                    if (element.NodeIds.Count == 0)
+                    {
+                        errors.Add($"Element[{i}]: NodeIds is empty.");
+                        continue;
+                    }
+
+                    if (element is LineElement && element.NodeIds.Count < 2)
+                    {
+                        errors.Add($"Element[{i}]: LineElement requires at least 2 nodes, but has {element.NodeIds.Count}.");
+                        continue;
+                    }
+
+                    foreach (var nodeId in element.NodeIds)
+                    {
+                        if (!nodeById.ContainsKey(nodeId))
+                        {
+                            errors.Add($"Element[{i}]: References non-existent Node ID {nodeId}.");
+                        }
+                    }
+                }
+
+                // === 要素ID自動採番 ===
+                int nextElementId = 0;
+                var usedElementIds = new HashSet<int>();
+
+                for (int i = 0; i < Elements.Count; i++)
+                {
+                    var element = Elements[i];
+
+                    if (element.Id < 0 || usedElementIds.Contains(element.Id))
+                    {
+                        element.Id = nextElementId++;
+                        warnings.Add($"Element[{i}]: Auto-assigned ID = {element.Id}");
+                    }
+                    else
+                    {
+                        if (element.Id >= nextElementId)
+                        {
+                            nextElementId = element.Id + 1;
+                        }
+                    }
+
+                    usedElementIds.Add(element.Id);
+                }
+            }
+
+            // === Support の Point3 処理 ===
+            // ★ Element処理の後に移動（要素からのノード生成が完了している）
+            if (Supports != null)
+            {
+                for (int i = 0; i < Supports.Count; i++)
+                {
+                    var support = Supports[i];
+
+                    // Point3で指定されている場合
+                    if (support.Position.HasValue && support.NodeId < 0)
+                    {
+                        Node node;
+                        var position = support.Position.Value;
+
+                        // 既存ノードの中に同じ座標があるか確認
+                        if (nodeByCoordinate.TryGetValue(position, out node))
+                        {
+                            // 既存ノードを使用
+                            support.NodeId = node.Id;
+                            warnings.Add($"Support[{i}]: Using existing Node ID {node.Id} at ({position.X:F3}, {position.Y:F3}, {position.Z:F3})");
+                        }
+                        else
+                        {
+                            // 既存ノードが見つからない場合はエラー
+                            errors.Add($"Support[{i}]: No existing node found at position ({position.X:F3}, {position.Y:F3}, {position.Z:F3}). " +
+                                     $"Support must reference an existing node created by elements. " +
+                                     $"Tolerance: {NodeTolerance:E3}");
+                        }
+                    }
+                }
+            }
+
+            // === PointLoad の Point3 処理 ===
+            // ★ Element処理の後に移動（要素からのノード生成が完了している）
+            if (Loads != null)
+            {
+                for (int i = 0; i < Loads.Count; i++)
+                {
+                    var load = Loads[i];
+
+                    if (load is PointAction pointAction && pointAction.Position.HasValue && pointAction.NodeId < 0)
+                    {
+                        Node node;
+                        var position = pointAction.Position.Value;
+
+                        // 既存ノードの中に同じ座標があるか確認
+                        if (nodeByCoordinate.TryGetValue(position, out node))
+                        {
+                            // 既存ノードを使用
+                            pointAction.NodeId = node.Id;
+                            warnings.Add($"Load[{i}] ({load.GetType().Name}): Using existing Node ID {node.Id} at ({position.X:F3}, {position.Y:F3}, {position.Z:F3})");
+                        }
+                        else
+                        {
+                            // 既存ノードが見つからない場合はエラー
+                            errors.Add($"Load[{i}] ({load.GetType().Name}): No existing node found at position ({position.X:F3}, {position.Y:F3}, {position.Z:F3}). " +
+                                     $"Load must reference an existing node created by elements. " +
+                                     $"Tolerance: {NodeTolerance:E3}");
+                        }
+                    }
+                }
+            }
+
+            // === 支持条件の検証 ===
+            if (Supports != null && Nodes != null)
+            {
+                foreach (var support in Supports)
+                {
+                    if (!nodeById.ContainsKey(support.NodeId))
+                    {
+                        errors.Add($"Support references non-existent Node ID {support.NodeId}.");
+                    }
+                }
+            }
+
+            // === 荷重の検証 ===
+            if (Loads != null)
+            {
+                var elementIds = Elements?.Select(e => e.Id).ToHashSet() ?? new HashSet<int>();
+
+                foreach (var load in Loads)
+                {
+                    if (load is PointLoad pointLoad)
+                    {
+                        if (!nodeById.ContainsKey(pointLoad.NodeId))
+                        {
+                            errors.Add($"PointLoad references non-existent Node ID {pointLoad.NodeId}.");
+                        }
+                    }
+                    else if (load is ElementLoad elementLoad)
+                    {
+                        if (!elementIds.Contains(elementLoad.ElementId))
+                        {
+                            errors.Add($"ElementLoad references non-existent Element ID {elementLoad.ElementId}.");
+                        }
+                    }
+                }
+            }
+
+            // エラーがある場合は例外をスロー
+            if (errors.Count > 0)
+            {
+                var errorMessage = new StringBuilder();
+                errorMessage.AppendLine("Model validation failed:");
+                foreach (var error in errors)
+                {
+                    errorMessage.AppendLine($"  - {error}");
+                }
+
+                if (warnings.Count > 0)
+                {
+                    errorMessage.AppendLine("\nWarnings:");
+                    foreach (var warning in warnings)
+                    {
+                        errorMessage.AppendLine($"  - {warning}");
+                    }
+                }
+
+                throw new InvalidOperationException(errorMessage.ToString());
+            }
+
+            // 警告のみの場合はコンソールに出力
+            if (warnings.Count > 0)
+            {
+                System.Diagnostics.Debug.WriteLine("Model validation warnings:");
+                foreach (var warning in warnings)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - {warning}");
+                }
+            }
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)

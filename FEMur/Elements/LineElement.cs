@@ -1,4 +1,5 @@
 ﻿using FEMur.CrossSections;
+using FEMur.Geometry;
 using FEMur.Materials;
 using FEMur.Nodes;
 using MathNet.Numerics.LinearAlgebra;
@@ -10,42 +11,53 @@ using System.Runtime.Serialization;
 namespace FEMur.Elements
 {
     //abstract class for line elements such as beams, trusses, etc.
-    public abstract class LineElement:ElementBase,ISerializable
+    public abstract class LineElement : ElementBase, ISerializable
     {
-        public double BetaAngle { get; set; } = 0.0; // in degrees
+        public double BetaAngle { get; set; } = 0.0;
 
         public LineElement() { }
-        
-        LineElement(int id,List<int> nodeIds, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
-            :base(id,nodeIds,material,crossSection)
-        {
-            BetaAngle = betaAngle;
-        }
-        LineElement(int id, List<Node> nodes, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
-            : base(id, nodes.Select(n => n.Id).ToList(), material, crossSection)
-        {
-            BetaAngle = betaAngle;
-        }
-        LineElement(int id, Node node1, Node node2, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
-            : base(id, new List<int> { node1.Id, node2.Id }, material, crossSection)
+
+        // IDなしコンストラクタ（推奨）
+        protected LineElement(Point3 point1, Point3 point2, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
+            : base(new List<Point3> { point1, point2 }, material, crossSection)
         {
             BetaAngle = betaAngle;
         }
 
+        // IDなしコンストラクタ（NodeIds指定）
+        protected LineElement(List<int> nodeIds, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
+            : base(nodeIds, material, crossSection)
+        {
+            BetaAngle = betaAngle;
+        }
 
-        public LineElement(int v1, int v2) 
+        protected LineElement(Node node1, Node node2, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
+            : base(new List<int> { node1.Id, node2.Id }, material, crossSection)
+        {
+            BetaAngle = betaAngle;
+        }
+
+        // ID指定コンストラクタ（既存コードとの互換性のため）
+        protected LineElement(int id, Point3 point1, Point3 point2, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
+            : base(id, new List<Point3> { point1, point2 }, material, crossSection)
+        {
+            BetaAngle = betaAngle;
+        }
+
+        public LineElement(int v1, int v2)
         {
             NodeIds = new List<int> { v1, v2 };
         }
+
         public LineElement(int id, int node1Id, int node2Id, Material material, CrossSection_Beam crossSection, double betaAngle = 0.0)
         {
             Id = id;
-            NodeIds = new List<int> { node1Id,node2Id };
+            NodeIds = new List<int> { node1Id, node2Id };
             Material = material;
             CrossSection = crossSection;
             BetaAngle = betaAngle;
         }
-        
+
         /// <summary>
         /// 線要素の局所座標系を計算（β角方式）
         /// LocalAxisX: 部材軸方向（節点1→節点2）
@@ -110,42 +122,42 @@ namespace FEMur.Elements
             {
                 // 要素座標系x軸が全体座標系Z軸に平行でない場合
                 // β角は全体座標系Z軸と要素座標系xz平面が成す角度
-                
+
                 // 局所x軸と全体Z軸を含む平面の法線ベクトル n = ex × (0,0,1)
                 double nx = exy;   // = exy * 1.0 - exz * 0.0
                 double ny = -exx;  // = exz * 0.0 - exx * 1.0
                 double nz = 0.0;   // = exx * 0.0 - exy * 0.0
                 double nNorm = Math.Sqrt(nx * nx + ny * ny);
-                
+
                 if (nNorm < 1e-12)
                 {
                     throw new ArgumentException($"LineElement(Id={Id}) failed to compute local coordinate system.");
                 }
-                
+
                 nx /= nNorm;
                 ny /= nNorm;
-                
+
                 // 全体Z軸を局所x軸に垂直な平面に射影したベクトル v
                 // v = (0,0,1) - ((0,0,1)·ex)ex
                 double vx = -dotWithGlobalZ * exx;
                 double vy = -dotWithGlobalZ * exy;
                 double vz = 1.0 - dotWithGlobalZ * exz;
                 double vNorm = Math.Sqrt(vx * vx + vy * vy + vz * vz);
-                
+
                 if (vNorm < 1e-12)
                 {
                     throw new ArgumentException($"LineElement(Id={Id}) failed to compute reference vector.");
                 }
-                
+
                 vx /= vNorm;
                 vy /= vNorm;
                 vz /= vNorm;
-                
+
                 // 局所Z軸 = v*cos(β) + n*sin(β)
                 ezx = vx * cosBeta + nx * sinBeta;
                 ezy = vy * cosBeta + ny * sinBeta;
                 ezz = vz * cosBeta + nz * sinBeta;
-                
+
                 // 正規化
                 double ezNorm = Math.Sqrt(ezx * ezx + ezy * ezy + ezz * ezz);
                 ezx /= ezNorm;
@@ -176,12 +188,6 @@ namespace FEMur.Elements
         // 座標変換行列: v_g = T v_l（T は diag(R,R,R,R)）
         internal override Matrix<double> CalcTransformationMatrix(List<Node> nodes)
         {
-            // 局所座標系が未計算の場合は計算
-            if (LocalAxisX == null || LocalAxisY == null || LocalAxisZ == null || Length <= 0)
-            {
-                CalcLocalAxis(nodes);
-            }
-
             // CalcLocalAxisで計算済みの基底ベクトルを取得
             double exx = LocalAxisX[0], exy = LocalAxisX[1], exz = LocalAxisX[2];
             double eyx = LocalAxisY[0], eyy = LocalAxisY[1], eyz = LocalAxisY[2];

@@ -32,11 +32,11 @@ namespace FEMur.Solver.Tests
             List<ElementBase> elements = new List<ElementBase> { element1 };
 
             // 根元固定（6自由度固定）
-            Support support1 = new Support(0, 0, true, true, true, true, true, true);
+            Support support1 = new Support( 0, true, true, true, true, true, true);
             List<Support> supports = new List<Support> { support1 };
 
             // 先端に -Y 方向 1N を作用
-            PointLoad load1 = new PointLoad(1, new Vector3(0.0, -1.0, 0.0), new Vector3(0.0, 0.0, 0.0), false);
+            PointLoad load1 = new PointLoad(1, new Vector3(0.0, -1.0, 0.0), new Vector3(0.0, 0.0, 0.0));
             List<Load> loads = new List<Load> { load1 };
 
             Model model = new Model(nodes, elements, supports, loads);
@@ -83,14 +83,14 @@ namespace FEMur.Solver.Tests
             var supports = new List<Support>
             {
                 // Support(id, nodeId, fixDX, fixDY, fixDZ, fixRX, fixRY, fixRZ)
-                new Support(0, n0.Id, true,  true,  true,  true,  false, false), // 左端: RX 1点拘束
-                new Support(1, n2.Id, false, true,  true,  true, false, false)  // 右端: ローラー（回転は全自由）
+                new Support(n0.Id, true,  true,  true,  true,  false, false), // 左端: RX 1点拘束
+                new Support(n2.Id, false, true,  true,  true, false, false)  // 右端: ローラー（回転は全自由）
             };
 
             double P = 1.0; // N
             var loads = new List<Load>
             {
-                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0))
             };
 
             var model = new Model(nodes, elements, supports, loads);
@@ -131,8 +131,8 @@ namespace FEMur.Solver.Tests
 
             var supports = new List<Support>
             {
-                new Support(0, n0.Id, true,  true,  true,  true,  false, false), // 左端: RX だけ追加で固定
-                new Support(1, n2.Id, false, true,  true,  false, false, false)  // 右端: ローラー（回転は全自由）
+                new Support(n0.Id, true,  true,  true,  true,  false, false), // 左端: RX だけ追加で固定
+                new Support(n2.Id, false, true,  true,  false, false, false)  // 右端: ローラー（回転は全自由）
             };
 
             // 等分布荷重 q [N/mm]（全長に -Y 方向）
@@ -190,14 +190,14 @@ namespace FEMur.Solver.Tests
             // 根元固定（6自由度固定）
             var supports = new List<Support>
             {
-                new Support(0, nodes[0].Id, true, true, true, true, true, true)
+                new Support(nodes[0].Id, true, true, true, true, true, true)
             };
 
             // 先端に -Y 方向 1N を作用
             double P = 1.0; // N
             var loads = new List<Load>
             {
-                new PointLoad(nodes[nodeCount - 1].Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+                new PointLoad(nodes[nodeCount - 1].Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0))
             };
 
             var model = new Model(nodes, elements, supports, loads);
@@ -268,15 +268,15 @@ namespace FEMur.Solver.Tests
             // 支持条件: 両端固定
             var supports = new List<Support>
             {
-                new Support(0, n0.Id, true, true, true, true, true, true), // 左下固定
-                new Support(1, n3.Id, true, true, true, true, true, true)  // 右下固定
+                new Support(n0.Id, true, true, true, true, true, true), // 左下固定
+                new Support(n3.Id, true, true, true, true, true, true)  // 右下固定
             };
 
             // 荷重: 左上節点に水平荷重 10N（+X方向）
             double P = 10.0;
             var loads = new List<Load>
             {
-                new PointLoad(n1.Id, new Vector3(P, 0.0, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+                new PointLoad(n1.Id, new Vector3(P, 0.0, 0.0), new Vector3(0.0, 0.0, 0.0))
             };
 
             var model = new Model(nodes, elements, supports, loads);
@@ -326,14 +326,14 @@ namespace FEMur.Solver.Tests
 
             var supports = new List<Support>
             {
-                new Support(0, n0.Id, true, true, true, true, true, true) // 完全固定
+                new Support(n0.Id, true, true, true, true, true, true) // 完全固定
             };
 
             // 梁端にねじりモーメント 1000 N·mm（X軸周り）
             double Mx = 1000.0;
             var loads = new List<Load>
             {
-                new PointLoad(n2.Id, new Vector3(0.0, 0.0, 0.0), new Vector3(Mx, 0.0, 0.0), false)
+                new PointLoad(n2.Id, new Vector3(0.0, 0.0, 0.0), new Vector3(Mx, 0.0, 0.0))
             };
 
             var model = new Model(nodes, elements, supports, loads);
@@ -382,8 +382,8 @@ namespace FEMur.Solver.Tests
 
             var supports = new List<Support>
             {
-                new Support(0, n0.Id, true, true, true, true, true, true),
-                new Support(1, n4.Id, true, true, true, true, true, true)
+                new Support(n0.Id, true, true, true, true, true, true),
+                new Support(n4.Id, true, true, true, true, true, true)
             };
 
             // 梁全体に等分布荷重 q = 0.01 N/mm（-Y方向）
@@ -429,14 +429,14 @@ namespace FEMur.Solver.Tests
 
             var supports = new List<Support>
             {
-                new Support(0, n0.Id, true, true, true, true, true, true)
+                new Support( n0.Id, true, true, true, true, true, true)
             };
 
             // 先端に -Y 方向 10N を作用
             double P = 10.0;
             var loads = new List<Load>
             {
-                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0))
             };
 
             var model = new Model(nodes, elements, supports, loads);
@@ -485,14 +485,14 @@ namespace FEMur.Solver.Tests
 
             var supports = new List<Support>
             {
-                new Support(0, n0.Id, true, true, true, true, false, false),
-                new Support(1, n2.Id, false, true, true, true, false, false)
+                new Support(n0.Id, true, true, true, true, false, false),
+                new Support(n2.Id, false, true, true, true, false, false)
             };
 
             double P = 10.0;
             var loads = new List<Load>
             {
-                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0))
             };
 
             var model = new Model(nodes, elements, supports, loads);
@@ -537,14 +537,14 @@ namespace FEMur.Solver.Tests
             // 回転拘束なし（RX, RY, RZ すべて自由）→ 特異行列
             var supports = new List<Support>
             {
-                new Support(0, n0.Id, true,  true,  true,  false, false, false), // 左端: 並進のみ拘束
-                new Support(1, n2.Id, false, true,  true,  false, false, false)  // 右端: UY, UZ のみ拘束
+                new Support(n0.Id, true,  true,  true,  false, false, false), // 左端: 並進のみ拘束
+                new Support(n2.Id, false, true,  true,  false, false, false)  // 右端: UY, UZ のみ拘束
             };
 
             double P = 10.0;
             var loads = new List<Load>
             {
-                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0))
             };
 
             var model = new Model(nodes, elements, supports, loads);
@@ -607,13 +607,13 @@ namespace FEMur.Solver.Tests
             // UZ を拘束しない → Z方向の剛体変位が残る
             var supports = new List<Support>
             {
-                new Support(0, n0.Id, true, true, false, true, true, true) // UZ 未拘束
+                new Support(n0.Id, true, true, false, true, true, true) // UZ 未拘束
             };
 
             double P = 10.0;
             var loads = new List<Load>
             {
-                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0))
             };
 
             var model = new Model(nodes, elements, supports, loads);
@@ -666,7 +666,7 @@ namespace FEMur.Solver.Tests
             double P = 10.0;
             var loads = new List<Load>
             {
-                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0))
             };
 
             var model = new Model(nodes, elements, supports, loads);
@@ -724,14 +724,14 @@ namespace FEMur.Solver.Tests
             // 回転拘束なし → 特異行列
             var supports = new List<Support>
             {
-                new Support(0, n0.Id, true,  true,  true,  false, false, false),
-                new Support(1, n2.Id, false, true,  true,  false, false, false)
+                new Support(n0.Id, true,  true,  true,  false, false, false),
+                new Support(n2.Id, false, true,  true,  false, false, false)
             };
 
             double P = 10.0;
             var loads = new List<Load>
             {
-                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0), false)
+                new PointLoad(n1.Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0))
             };
 
             var model = new Model(nodes, elements, supports, loads);
@@ -750,59 +750,359 @@ namespace FEMur.Solver.Tests
         }
 
         [TestMethod()]
-        public void AutoRegularization_PortalFrame_MissingOneRotationalConstraint()
+        public void Cantilever_DefinedByPoint3_TipPointLoad_Deflection()
         {
-            // 門型フレームで RX 拘束が1つだけ不足 → 特異行列
-            // 自動正則化により解析完了
-            double H = 3000.0;
-            double W = 4000.0;
+            // Point3で要素を定義した片持ち梁
+            // 自動ノード生成機能を利用
+            double L = 1000.0;
 
-            Node n0 = new Node(0, 0.0, 0.0, 0.0);
-            Node n1 = new Node(1, 0.0, H, 0.0);
-            Node n2 = new Node(2, W, H, 0.0);
-            Node n3 = new Node(3, W, 0.0, 0.0);
-            var nodes = new List<Node> { n0, n1, n2, n3 };
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+
+            // Point3で要素を定義（NodeIdsはnull）
+            var point1 = new Point3(0.0, 0.0, 0.0);
+            var point2 = new Point3(L, 0.0, 0.0);
+
+            var element = new BeamElement(0, point1, point2, material, cs);
+            var elements = new List<ElementBase> { element };
+
+            // Modelコンストラクタで自動的にノードが生成される
+            // 最初は空のノードリストを渡す
+            var model = new Model(new List<Node>(), elements, new List<Support>(), new List<Load>());
+
+            // 自動生成されたノードを確認
+            Assert.AreEqual(2, model.Nodes.Count, "2つのノードが自動生成されるべき");
+            Assert.IsNotNull(element.NodeIds, "NodeIdsが自動設定されるべき");
+            Assert.AreEqual(2, element.NodeIds.Count, "2つのノードIDが設定されるべき");
+
+            // 生成されたノードIDを取得
+            int node1Id = element.NodeIds[0];
+            int node2Id = element.NodeIds[1];
+
+            // 根元固定の支持条件を追加（自動生成されたノードIDを使用）
+            var support = new Support(node1Id, true, true, true, true, true, true);
+            model.Supports.Add(support);
+
+            // 先端に -Y 方向 1N を作用（自動生成されたノードIDを使用）
+            double P = 1.0;
+            var load = new PointLoad(node2Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0));
+            model.Loads.Add(load);
+
+            // ソルバーで解析
+            var solver = new LinearStaticSolver
+            {
+                EnableRegularization = false,
+                RotationalRegularizationFactor = 1e-8,
+                EnableTranslationalRegularization = false,
+                TranslationalRegularizationFactor = 1e-8
+            };
+
+            var disp = solver.solveDisp(model);
+
+            // 理論値との比較
+            double E = material.E;
+            double Izz = cs.Izz;
+            double expectedDisplacementY = -P * (L * L * L) / (3.0 * E * Izz);
+
+            double tipY = disp[node2Id * 6 + 1];
+
+            double tol = 1e-9 + 1e-6 * System.Math.Abs(expectedDisplacementY);
+            Assert.AreEqual(expectedDisplacementY, tipY, tol,
+                $"先端変位 {tipY:E3} が理論値 {expectedDisplacementY:E3} と一致すべき");
+        }
+
+        [TestMethod()]
+        public void Cantilever_MultiElement_DefinedByPoint3_TipPointLoad()
+        {
+            // Point3で複数要素を定義した片持ち梁
+            // ノード共有が正しく行われることを確認
+            double L = 1000.0;
+            int numElements = 4;
+            double elementLength = L / numElements;
+
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+
+            // Point3で要素を定義
+            var elements = new List<ElementBase>();
+            for (int i = 0; i < numElements; i++)
+            {
+                var p1 = new Point3(i * elementLength, 0.0, 0.0);
+                var p2 = new Point3((i + 1) * elementLength, 0.0, 0.0);
+                elements.Add(new BeamElement(i, p1, p2, material, cs));
+            }
+
+            // 自動ノード生成
+            var model = new Model(new List<Node>(), elements, new List<Support>(), new List<Load>());
+
+            // ノード数を確認（要素数+1になるはず)
+            Assert.AreEqual(numElements + 1, model.Nodes.Count,
+                $"{numElements}要素の場合、{numElements + 1}個のノードが生成されるべき");
+
+            // 各要素のNodeIdsが正しく設定されているか確認
+            for (int i = 0; i < numElements; i++)
+            {
+                var elem = elements[i];
+                Assert.IsNotNull(elem.NodeIds, $"要素{i}のNodeIdsが設定されるべき");
+                Assert.AreEqual(2, elem.NodeIds.Count, $"要素{i}は2つのノードを持つべき");
+            }
+
+            // 隣接要素がノードを共有しているか確認
+            for (int i = 0; i < numElements - 1; i++)
+            {
+                var elem1 = elements[i];
+                var elem2 = elements[i + 1];
+                Assert.AreEqual(elem1.NodeIds[1], elem2.NodeIds[0],
+                    $"要素{i}と要素{i + 1}は中間ノードを共有すべき");
+            }
+
+            // 根元固定（最初の要素の始点ノード）
+            int fixedNodeId = elements[0].NodeIds[0];
+            var support = new Support(fixedNodeId, true, true, true, true, true, true);
+            model.Supports.Add(support);
+
+            // 先端荷重（最後の要素の終点ノード）
+            int tipNodeId = elements[numElements - 1].NodeIds[1];
+            double P = 1.0;
+            var load = new PointLoad(tipNodeId, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0));
+            model.Loads.Add(load);
+
+            // 解析
+            var solver = new LinearStaticSolver { EnableRegularization = false };
+            var disp = solver.solveDisp(model);
+
+            // 理論値との比較
+            double E = material.E;
+            double Izz = cs.Izz;
+            double expectedDisplacementY = -P * (L * L * L) / (3.0 * E * Izz);
+
+            double tipY = disp[tipNodeId * 6 + 1];
+
+            double tol = 1e-9 + 1e-6 * System.Math.Abs(expectedDisplacementY);
+            Assert.AreEqual(expectedDisplacementY, tipY, tol,
+                $"先端変位 {tipY:E3} が理論値 {expectedDisplacementY:E3} と一致すべき");
+        }
+
+        [TestMethod()]
+        public void PortalFrame_DefinedByPoint3_HorizontalLoad()
+        {
+            // Point3で定義した門型フレーム
+            double H = 3000.0; // 柱の高さ
+            double W = 4000.0; // 梁のスパン
 
             Material material = Material_Isotropic.Steel();
             CrossSection_H csColumn = new CrossSection_H(0, "Column", 200.0, 200.0, 12.0, 8.0, 6.0);
             CrossSection_H csBeam = new CrossSection_H(1, "Beam", 200.0, 300.0, 12.0, 8.0, 6.0);
 
-            var e0 = new BeamElement(0, n0, n1, material, csColumn);
-            var e1 = new BeamElement(1, n1, n2, material, csBeam);
-            var e2 = new BeamElement(2, n2, n3, material, csColumn);
-            var elements = new List<ElementBase> { e0, e1, e2 };
-
-            // 両端の RX を拘束しない → X軸周りの剛体回転モード
-            var supports = new List<Support>
+            // Point3で要素を定義
+            var elements = new List<ElementBase>
             {
-                new Support(0, n0.Id, true, true, true, false, true, true),  // RX 未拘束
-                new Support(1, n3.Id, true, true, true, false, true, true)   // RX 未拘束
+                new BeamElement(0, new Point3(0.0, 0.0, 0.0), new Point3(0.0, H, 0.0), material, csColumn), // 左柱
+                new BeamElement(1, new Point3(0.0, H, 0.0), new Point3(W, H, 0.0), material, csBeam),      // 梁
+                new BeamElement(2, new Point3(W, H, 0.0), new Point3(W, 0.0, 0.0), material, csColumn)     // 右柱
             };
+
+            // 自動ノード生成
+            var model = new Model(new List<Node>(), elements, new List<Support>(), new List<Load>());
+
+            // ノード数を確認（4つのノードが生成されるはず）
+            Assert.AreEqual(4, model.Nodes.Count, "門型フレームで4つのノードが生成されるべき");
+
+            // 要素の接続確認
+            Assert.AreEqual(elements[0].NodeIds[1], elements[1].NodeIds[0],
+                "左柱と梁は左上節点を共有すべき");
+            Assert.AreEqual(elements[1].NodeIds[1], elements[2].NodeIds[0],
+                "梁と右柱は右上節点を共有すべき");
+
+            // 支持条件（両端固定）
+            int leftBottomNodeId = elements[0].NodeIds[0];
+            int rightBottomNodeId = elements[2].NodeIds[1];
+            model.Supports.Add(new Support(leftBottomNodeId, true, true, true, true, true, true));
+            model.Supports.Add(new Support(rightBottomNodeId, true, true, true, true, true, true));
+
+            // 荷重（左上節点に水平荷重）
+            int leftTopNodeId = elements[0].NodeIds[1];
+            double P = 10.0;
+            model.Loads.Add(new PointLoad(leftTopNodeId, new Vector3(P, 0.0, 0.0), new Vector3(0.0, 0.0, 0.0)));
+
+            // 解析
+            var solver = new LinearStaticSolver { EnableRegularization = false };
+            var disp = solver.solveDisp(model);
+
+            // 水平変位を検証
+            double dispX = disp[leftTopNodeId * 6 + 0];
+
+            // 簡易理論値（柱の曲げ変形のみ考慮）
+            // δ = P * H^3 / (3 * E * I_column)
+            // ただし、梁の影響で実際は小さくなる
+            double E = material.E;
+            double I_col = csColumn.Iyy; // Y軸周りの慣性モーメント（X方向曲げ）
+            double expectedMax = P * System.Math.Pow(H, 3) / (3.0 * E * I_col);
+
+            Assert.IsTrue(dispX > 0, "水平変位は正の値であるべき");
+            Assert.IsTrue(dispX < expectedMax, "梁の拘束により変位は片持ち梁より小さいはず");
+            Assert.IsTrue(dispX > 0.1 * expectedMax && dispX <= expectedMax,
+                $"変位 {dispX:E3} が妥当な範囲 (0.1*{expectedMax:E3} ～ {expectedMax:E3}) にあるべき");
+        }
+
+        [TestMethod()]
+        public void MixedDefinition_NodesAndPoint3_Cantilever()
+        {
+            // 既存ノードとPoint3による要素定義を混在させたケース
+            // ノードの再利用が正しく行われることを確認
+            double L = 1000.0;
+
+            // 既存ノードを一部定義
+            var existingNode = new Node(0, 0.0, 0.0, 0.0);
+            var nodes = new List<Node> { existingNode };
+
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+
+            // 最初の要素: 既存ノードを使用
+            var element1 = new BeamElement(0, existingNode, new Node(1, L / 2.0, 0.0, 0.0), material, cs);
+
+            // 2番目の要素: Point3で定義（始点は既存ノードと同じ座標）
+            var element2 = new BeamElement(1,
+                new Point3(L / 2.0, 0.0, 0.0), // 既存ノード1と同じ座標
+                new Point3(L, 0.0, 0.0),
+                material, cs);
+
+            var elements = new List<ElementBase> { element1, element2 };
+
+            // 自動ノード生成・統合
+            nodes.Add(new Node(1, L / 2.0, 0.0, 0.0)); // element1用
+            var model = new Model(nodes, elements, new List<Support>(), new List<Load>());
+
+            // ノード数を確認（0, L/2, Lの3つ)
+            Assert.AreEqual(3, model.Nodes.Count, "3つのノードが存在すべき");
+
+            // element2が中間ノードを再利用しているか確認
+            Assert.AreEqual(element1.NodeIds[1], element2.NodeIds[0],
+                "element2は既存の中間ノードを再利用すべき");
+
+            // 根元固定
+            var support = new Support(existingNode.Id, true, true, true, true, true, true);
+            model.Supports.Add(support);
+
+            // 先端荷重
+            int tipNodeId = element2.NodeIds[1];
+            double P = 1.0;
+            var load = new PointLoad(tipNodeId, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0));
+            model.Loads.Add(load);
+
+            // 解析
+            var solver = new LinearStaticSolver { EnableRegularization = false };
+            var disp = solver.solveDisp(model);
+
+            // 理論値との比較
+            double E = material.E;
+            double Izz = cs.Izz;
+            double expectedDisplacementY = -P * (L * L * L) / (3.0 * E * Izz);
+
+            double tipY = disp[tipNodeId * 6 + 1];
+
+            double tol = 1e-9 + 1e-6 * System.Math.Abs(expectedDisplacementY);
+            Assert.AreEqual(expectedDisplacementY, tipY, tol,
+                $"先端変位 {tipY:E3} が理論値 {expectedDisplacementY:E3} と一致すべき");
+        }
+
+        [TestMethod()]
+        public void Point3Definition_WithTolerance_NodeReuse()
+        {
+            // 許容誤差内の座標でノードが再利用されることを確認
+            double L = 1000.0;
+            double tolerance = 0.001; // Modelのデフォルト許容誤差
+
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+
+            // わずかに異なる座標（許容誤差内）で要素を定義
+            var elements = new List<ElementBase>
+            {
+                new BeamElement(0,
+                    new Point3(0.0, 0.0, 0.0),
+                    new Point3(L / 2.0, 0.0, 0.0),
+                    material, cs),
+                new BeamElement(1,
+                    new Point3(L / 2.0 + tolerance * 0.5, 0.0, 0.0), // 許容誤差の半分ずれている
+                    new Point3(L, 0.0, 0.0),
+                    material, cs)
+            };
+
+            // 自動ノード生成
+            var model = new Model(new List<Node>(), elements, new List<Support>(), new List<Load>());
+
+            // ノード数を確認（許容誤差内なので中間ノードは1つだけ）
+            Assert.AreEqual(3, model.Nodes.Count,
+                "許容誤差内の座標は同一ノードとして扱われるべき");
+
+            // 要素が中間ノードを共有しているか確認
+            Assert.AreEqual(elements[0].NodeIds[1], elements[1].NodeIds[0],
+                "許容誤差内の座標で定義された要素は同じノードを共有すべき");
+
+            // 簡易的な解析実行（エラーが出ないことを確認)
+            int fixedNodeId = elements[0].NodeIds[0];
+            int tipNodeId = elements[1].NodeIds[1];
+
+            model.Supports.Add(new Support(fixedNodeId, true, true, true, true, true, true));
+            model.Loads.Add(new PointLoad(tipNodeId, new Vector3(0.0, -1.0, 0.0), new Vector3(0.0, 0.0, 0.0)));
+
+            var solver = new LinearStaticSolver { EnableRegularization = false };
+            var disp = solver.solveDisp(model);
+
+            // 解析が正常に完了することを確認
+            Assert.IsNotNull(disp, "解析が正常に完了すべき");
+            Assert.IsFalse(double.IsNaN(disp[tipNodeId * 6 + 1]), "変位が計算されるべき");
+        }
+
+        [TestMethod()]
+        public void Point3Definition_Stress_Verification()
+        {
+            // Point3で定義した要素の応力検証
+            double L = 1000.0;
+
+            Material material = Material_Isotropic.Steel();
+            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+
+            // Point3で要素を定義
+            var element = new BeamElement(0,
+                new Point3(0.0, 0.0, 0.0),
+                new Point3(L, 0.0, 0.0),
+                material, cs);
+            var elements = new List<ElementBase> { element };
+
+            // 自動ノード生成
+            var model = new Model(new List<Node>(), elements, new List<Support>(), new List<Load>());
+
+            int node1Id = element.NodeIds[0];
+            int node2Id = element.NodeIds[1];
+
+            // 根元固定、先端荷重
+            model.Supports.Add(new Support(node1Id, true, true, true, true, true, true));
 
             double P = 10.0;
-            var loads = new List<Load>
-            {
-                new PointLoad(n1.Id, new Vector3(P, 0.0, 0.0), new Vector3(0.0, 0.0, 0.0), false)
-            };
+            model.Loads.Add(new PointLoad(node2Id, new Vector3(0.0, -P, 0.0), new Vector3(0.0, 0.0, 0.0)));
 
-            var model = new Model(nodes, elements, supports, loads);
-            var solver = new LinearStaticSolver
-            {
-                EnableAutoRegularization = true
-            };
-
+            // 解析
+            var solver = new LinearStaticSolver { EnableRegularization = false };
             var result = solver.Solve(model);
 
-            // 解析完了、警告出力を確認
-            Assert.IsNotNull(result);
-            Assert.IsTrue(model.IsSolved);
-            Assert.IsTrue(solver.Warnings.Count > 0, "特異行列に対する警告が出ているべき");
+            // 応力検証
+            var stress = result.ElementStresses[0];
 
-            // 水平変位が妥当
-            double dispX_n1 = result.NodalDisplacements[n1.Id * 6 + 0];
-            Assert.IsFalse(double.IsNaN(dispX_n1));
-            Assert.IsFalse(double.IsInfinity(dispX_n1));
-            Assert.IsTrue(dispX_n1 > 0, "水平荷重により正の変位");
+            // i端（固定端）の曲げモーメント: M = P * L
+            double expectedMz_i = P * L;
+            Assert.AreEqual(expectedMz_i, stress.Mz_i, Math.Abs(expectedMz_i) * 1e-6,
+                $"i端の曲げモーメント Mz_i={stress.Mz_i} が理論値 {expectedMz_i} と一致すべき");
+
+            // i端のせん断力: V = P
+            Assert.AreEqual(P, stress.Fy_i, Math.Abs(P) * 1e-6,
+                $"i端のせん断力 Fy_i={stress.Fy_i} が理論値 {P} と一致すべき");
+
+            // j端（自由端）の曲げモーメント: ほぼ0
+            Assert.AreEqual(0.0, stress.Mz_j, Math.Abs(expectedMz_i) * 1e-3,
+                $"j端の曲げモーメント Mz_j={stress.Mz_j} はほぼ0であるべき");
         }
     }
 }

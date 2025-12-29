@@ -3,60 +3,71 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Runtime.Serialization;
-using FEMur.Geometry;
 using FEMur.Nodes;
+using FEMur.Geometry;
 
 namespace FEMur.Loads
 {
-    public class PointLoad : PointAction, ISerializable
+    public class PointLoad : PointAction
     {
-        public Vector3 Force
-        {
-            get => this.ActionTranslation;
-            set => this.ActionTranslation = value;
-        }
-
-        public Vector3 Moment
-        {
-            get => this.ActionRotation;
-            set => this.ActionRotation = value;
-        }
+        public Vector3 Force { get; set; }
+        public Vector3 Moment { get; set; }
 
         public PointLoad() { }
 
-        public PointLoad(PointLoad other)
-            : base(other)
+        // Point3ベースコンストラクタ（Grasshopper用）
+        public PointLoad(Point3 position, Vector3 force)
+            : base(position)
         {
-            this.Force = other.Force;
-            this.Moment = other.Moment;
+            Force = force;
+            Moment = new Vector3(0, 0, 0);
         }
 
-        public PointLoad(int idx, Vector3 force, Vector3 moment)
-            : base(idx, force, moment)
+        public PointLoad(Point3 position, Vector3 force, Vector3 moment)
+            : base(position)
         {
+            Force = force;
+            Moment = moment;
+        }
+
+        // NodeIDベースコンストラクタ（既存）
+        public PointLoad(int nodeId, Vector3 force)
+            : base(nodeId)
+        {
+            Force = force;
+            Moment = new Vector3(0, 0, 0);
+        }
+
+        public PointLoad(int nodeId, Vector3 force, Vector3 moment)
+            : base(nodeId)
+        {
+            Force = force;
+            Moment = moment;
+        }
+
+        // Nodeベースコンストラクタ（既存）
+        public PointLoad(Node node, Vector3 force)
+            : base(node)
+        {
+            Force = force;
+            Moment = new Vector3(0, 0, 0);
         }
 
         public PointLoad(Node node, Vector3 force, Vector3 moment)
-            : base(node?.Id ?? throw new ArgumentNullException(nameof(node)), force, moment)
+            : base(node)
         {
+            Force = force;
+            Moment = moment;
         }
 
-        protected PointLoad(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
-            Force = (Vector3)info.GetValue("Force", typeof(Vector3));
-            Moment = (Vector3)info.GetValue("Moment", typeof(Vector3));
-        }
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            base.GetObjectData(info, context);
-            info.AddValue("Force", Force);
-            info.AddValue("Moment", Moment);
-        }
         public override string ToString()
         {
-            return $"Point Load: Force = {Force}, Moment = {Moment}, NodeId = {NodeId}";
+            if (Position.HasValue)
+            {
+                return $"PointLoad at ({Position.Value.X:F2}, {Position.Value.Y:F2}, {Position.Value.Z:F2}), " +
+                       $"Force=({Force.X:F2}, {Force.Y:F2}, {Force.Z:F2})";
+            }
+            return $"PointLoad at NodeId={NodeId}, Force=({Force.X:F2}, {Force.Y:F2}, {Force.Z:F2})";
         }
     }
 }
