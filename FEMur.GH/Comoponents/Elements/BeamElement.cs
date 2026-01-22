@@ -1,59 +1,54 @@
-ï»¿using System;
+using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
 using Grasshopper.Kernel;
-
-// ã‚³ã‚¢å‹ã®ã‚¨ã‚¤ãƒªã‚¢ã‚¹ï¼ˆåå‰ã®è¡çªã‚’é¿ã‘ã‚‹ï¼‰
-using FEMNode = FEMur.Nodes.Node;
-using FEMMat = FEMur.Materials.Material;
-using FEMCS = FEMur.CrossSections.CrossSection_Beam;
-using FEMBeamElement = FEMur.Elements.BeamElement;
+using Grasshopper.Kernel.Data;
+using Grasshopper.Kernel.Types;
+using Rhino.Geometry;
+using FEMur.Elements;
+using FEMur.CrossSections;
+using FEMur.Materials;
+using FEMur.Geometry;
 
 namespace FEMurGH.Comoponents.Elements
 {
-    /// <summary>
-    /// å…¥åŠ›: List<Node> iç«¯Node, List<Node> jç«¯Node, Material, CrossSection_Beam, BetaAngle
-    /// å‡ºåŠ›: List<FEMur.Elements.BeamElement>
-    /// </summary>
     public class BeamElement : GH_Component
     {
         public BeamElement()
-          : base("BeamElement(FEMur)", "BeamElement",
-              "Create FEMur BeamElements from paired i/j Nodes with material, cross section, and beta angle.",
-              "FEMur", "4.Element")
+            : base("BeamElement", "be",
+                "Convert polylines to beam elements for structural analysis (using Point3)",
+                "FEMur", "4.Element")
         {
         }
 
+        public override Guid ComponentGuid => new Guid("A0D518A7-9DC8-4FDA-801F-E7F2DAD3926F");
+
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
-            // Generic å…¥åŠ›ã¨ã—ã¦ FEMur ã®å‹ã‚’å—ã‘å–ã‚‹ï¼ˆGoo æœªå®Ÿè£…ã®ãŸã‚ï¼‰
-            pManager.AddGenericParameter("iNodes", "Ni", "Start-end (i) FEMur Nodes (List<Node>)", GH_ParamAccess.list);
-            pManager.AddGenericParameter("jNodes", "Nj", "End-end (j) FEMur Nodes (List<Node>)", GH_ParamAccess.list);
-            pManager.AddGenericParameter("Material", "Mat", "FEMur Material", GH_ParamAccess.item);
-            pManager.AddGenericParameter("CrossSection", "CS", "FEMur CrossSection_Beam", GH_ParamAccess.item);
-            pManager.AddNumberParameter("BetaAngle", "Î²", "Local coordinate system rotation angle (degrees, default=0)", GH_ParamAccess.item, 0.0);
-
-            // BetaAngleã¯ã‚ªãƒ—ã‚·ãƒ§ãƒŠãƒ«
-            pManager[4].Optional = true;
+            pManager.AddCurveParameter("Polylines", "PL", "Polylines or lines to convert to beam elements", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Material", "M", "Material for beams", GH_ParamAccess.item);
+            pManager.AddGenericParameter("CrossSection", "CS", "Cross section for beams (CrossSection_Beam)", GH_ParamAccess.item);
+            pManager.AddNumberParameter("BetaAngle", "ƒÀ", "Local coordinate system rotation angle (degrees)", GH_ParamAccess.item, 0.0);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Elements", "E", "FEMur BeamElements", GH_ParamAccess.list);
+            pManager.AddGenericParameter("BeamElements", "BE", "Output beam elements", GH_ParamAccess.list);
+            pManager.AddPointParameter("Points", "P", "Beam endpoint positions organized by element (DataTree)", GH_ParamAccess.tree);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            var iNodes = new List<FEMNode>();
-            var jNodes = new List<FEMNode>();
-            FEMMat material = null;
-            FEMCS crossSection = null;
+            var curves = new List<Curve>();
+            Material material = null;
+            CrossSection_Beam crossSection = null;
             double betaAngle = 0.0;
 
-            if (!DA.GetDataList(0, iNodes)) return;
-            if (!DA.GetDataList(1, jNodes)) return;
-            if (!DA.GetData(2, ref material)) return;
-            if (!DA.GetData(3, ref crossSection)) return;
-            DA.GetData(4, ref betaAngle); // ã‚ªãƒ—ã‚·ãƒ§ãƒŠãƒ«
+            if (!DA.GetDataList(0, curves)) return;
+            if (!DA.GetData(1, ref material)) return;
+            if (!DA.GetData(2, ref crossSection)) return;
+            DA.GetData(3, ref betaAngle);
 
             if (material == null)
             {
@@ -65,38 +60,74 @@ namespace FEMurGH.Comoponents.Elements
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "CrossSection_Beam is null.");
                 return;
             }
-            if (iNodes.Count != jNodes.Count)
+
+            // Convert curves to line segments
+            var lineSegments = new List<Line>();
+            foreach (var curve in curves)
             {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"iNodes.Count ({iNodes.Count}) must equal jNodes.Count ({jNodes.Count}).");
-                return;
-            }
-            if (iNodes.Count == 0)
-            {
-                DA.SetDataList(0, new List<FEMBeamElement>());
-                return; 
+                if (curve.TryGetPolyline(out Polyline polyline))
+                {
+                    // ƒ|ƒŠƒ‰ƒCƒ“‚ÌŠeƒZƒOƒƒ“ƒg‚ğæ“¾
+                    for (int i = 0; i < polyline.SegmentCount; i++)
+                    {
+                        lineSegments.Add(polyline.SegmentAt(i));
+                    }
+                }
+                else if (curve.IsLinear())
+                {
+                    // ’¼ü‚Ìê‡
+                    lineSegments.Add(new Line(curve.PointAtStart, curve.PointAtEnd));
+                }
+                else
+                {
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, 
+                        "Non-linear curves are approximated as lines from start to end points");
+                    lineSegments.Add(new Line(curve.PointAtStart, curve.PointAtEnd));
+                }
             }
 
-            var elems = new List<FEMBeamElement>(iNodes.Count);
-            for (int k = 0; k < iNodes.Count; k++)
+            // Create beam elements using Point3 (ID‚È‚µ)
+            var beams = new List<FEMur.Elements.BeamElement>();
+            var pointsTree = new GH_Structure<GH_Point>();
+            int zeroLengthCount = 0;
+            const double minLength = 1e-6; // Å¬—v‘f’·
+
+            int elementIndex = 0;
+            foreach (var line in lineSegments)
             {
-                var ni = iNodes[k];
-                var nj = jNodes[k];
-                if (ni == null || nj == null)
+                // Check for zero-length elements
+                if (line.Length < minLength)
                 {
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Node pair at index {k} contains null. Skipped.");
+                    zeroLengthCount++;
                     continue;
                 }
 
-                // è¦ç´ IDã¯0ã‹ã‚‰ã®é€£ç•ªã§æ¡ç•ªï¼ˆå¿…è¦ã«å¿œã˜ã¦åˆ¥å…¥åŠ›ã§é–‹å§‹IDã‚’è¨­ã‘ã¦ã‚‚è‰¯ã„ï¼‰
-                var be = new FEMBeamElement(k, ni, nj, material, crossSection, betaAngle);
-                elems.Add(be);
+                // Rhino Point3d ‚ğ FEMur Point3 ‚É•ÏŠ·
+                var point1 = new Point3(line.From.X, line.From.Y, line.From.Z);
+                var point2 = new Point3(line.To.X, line.To.Y, line.To.Z);
+
+                // ID‚ğw’è‚¹‚¸‚ÉBeamElement‚ğì¬iModel“à‚Å©“®Ì”Ô‚³‚ê‚éj
+                var beam = new FEMur.Elements.BeamElement(point1, point2, material, crossSection, betaAngle);
+                beams.Add(beam);
+
+                // Tree\‘¢‚ÅŠe—v‘f‚²‚Æ‚Éß“_‚ğ’Ç‰Á
+                var path = new GH_Path(elementIndex);
+                pointsTree.Append(new GH_Point(line.From), path);
+                pointsTree.Append(new GH_Point(line.To), path);
+
+                elementIndex++;
             }
 
-            DA.SetDataList(0, elems);
+            if (zeroLengthCount > 0)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, 
+                    $"Skipped {zeroLengthCount} zero-length segments (< {minLength:E3})");
+            }
+
+            DA.SetDataList(0, beams);
+            DA.SetDataTree(1, pointsTree);
         }
 
         protected override System.Drawing.Bitmap Icon => null;
-
-        public override Guid ComponentGuid => new Guid("62B1BEEB-9882-489C-B873-EFF3A089CC65");
     }
 }

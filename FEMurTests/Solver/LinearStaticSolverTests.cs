@@ -20,23 +20,26 @@ namespace FEMur.Solver.Tests
         [TestMethod()]
         public void Simple_Cantilever_TipPointLoad_Deflection()
         {
-            // 片持ち梁（X軸に沿って配置）
-            Node node1 = new Node(0, 0.0, 0.0, 0.0);    // mm
-            Node node2 = new Node(1, 1000.0, 0.0, 0.0); // 1000mm に変更（オーダー合わせ）
-            List<Node> nodes = new List<Node> { node1, node2 };
+            // 片持ち梁（X軸に沿って配置）- 2要素に変更して節点共有位置での応力を確認
+            Node node1 = new Node(0, 0.0, 0.0, 0.0);    // mm - 固定端
+            Node node2 = new Node(1, 500.0, 0.0, 0.0);  // mm - 中間節点
+            Node node3 = new Node(2, 1000.0, 0.0, 0.0); // mm - 自由端
+            List<Node> nodes = new List<Node> { node1, node2, node3 };
 
             Material material = Material_Isotropic.Steel(); // E は N/mm^2 を仮定
             CrossSection_H crossSection = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0); // mm
 
+            // 2要素に分割
             BeamElement element1 = new BeamElement(0, node1, node2, material, crossSection);
-            List<ElementBase> elements = new List<ElementBase> { element1 };
+            BeamElement element2 = new BeamElement(1, node2, node3, material, crossSection);
+            List<ElementBase> elements = new List<ElementBase> { element1, element2 };
 
             // 根元固定（6自由度固定）
-            Support support1 = new Support( 0, true, true, true, true, true, true);
+            Support support1 = new Support(0, true, true, true, true, true, true);
             List<Support> supports = new List<Support> { support1 };
 
             // 先端に -Y 方向 1N を作用
-            PointLoad load1 = new PointLoad(1, new Vector3(0.0, -1.0, 0.0), new Vector3(0.0, 0.0, 0.0));
+            PointLoad load1 = new PointLoad(2, new Vector3(0.0, -1.0, 0.0), new Vector3(0.0, 0.0, 0.0));
             List<Load> loads = new List<Load> { load1 };
 
             Model model = new Model(nodes, elements, supports, loads);
@@ -48,18 +51,92 @@ namespace FEMur.Solver.Tests
                 EnableTranslationalRegularization = false,
                 TranslationalRegularizationFactor = 1e-8
             };
-            Vector<double> disp = solver.solveDisp(model);
+            
+            var result = solver.Solve(model);
+            Vector<double> disp = result.NodalDisplacements;
 
-            double L = node2.Position.X - node1.Position.X; // mm
+            // === 変位の検証 ===
+            double L = node3.Position.X - node1.Position.X; // mm
             double E = material.E;                           // N/mm^2
             double Izz = crossSection.Izz;                   // mm^4
             double Fy = -1.0;                                // N
             double expectedDisplacementY = Fy * (L * L * L) / (3.0 * E * Izz); // mm
 
-            double DispY = disp[7];
+            double DispY = disp[2 * 6 + 1]; // node3 (id=2) のY変位
 
             double tol = 1e-9 + 1e-6 * System.Math.Abs(expectedDisplacementY);
-            Assert.AreEqual(expectedDisplacementY, DispY, tol);
+            Assert.AreEqual(expectedDisplacementY, DispY, tol, "先端変位が理論値と一致すべき");
+
+            // === 応力の検証（節点共有位置での符号確認）===
+            var stress1 = result.ElementStresses.Find(s => s.ElementId == element1.Id);
+            var stress2 = result.ElementStresses.Find(s => s.ElementId == element2.Id);
+
+            Assert.IsNotNull(stress1, "要素1の応力が計算されているべき");
+            Assert.IsNotNull(stress2, "要素2の応力が計算されているべき");
+
+            Console.WriteLine("\n=== 片持ち梁の断面力（2要素） ===");
+            Console.WriteLine($"要素1 (節点{node1.Id} → 節点{node2.Id}):");
+            Console.WriteLine($"  i端(節点{node1.Id}): Fy = {stress1.Fy_i:F6} N, Mz = {stress1.Mz_i:F6} N·mm");
+            Console.WriteLine($"  j端(節点{node2.Id}): Fy = {stress1.Fy_j:F6} N, Mz = {stress1.Mz_j:F6} N·mm");
+            Console.WriteLine($"要素2 (節点{node2.Id} → 節点{node3.Id}):");
+            Console.WriteLine($"  i端(節点{node2.Id}): Fy = {stress2.Fy_i:F6} N, Mz = {stress2.Mz_i:F6} N·mm");
+            Console.WriteLine($"  j端(節点{node3.Id}): Fy = {stress2.Fy_j:F6} N, Mz = {stress2.Mz_j:F6} N·mm");
+
+            // 理論値: 節点2（中間節点）でのモーメント = -P * (L - x) = -1.0 * 500 = -500 N·mm
+            double expectedMomentAtNode2 = -1.0 * 500.0;
+            Console.WriteLine($"\n=== 理論値 ===");
+            Console.WriteLine($"節点2でのモーメント(理論値): {expectedMomentAtNode2:F6} N·mm");
+
+            // 節点2での応力の符号確認
+            Console.WriteLine($"\n=== 節点2での符号確認 ===");
+            Console.WriteLine($"要素1のj端モーメント: {stress1.Mz_j:F6} N·mm");
+            Console.WriteLine($"要素2のi端モーメント: {stress2.Mz_i:F6} N·mm");
+            Console.WriteLine($"差分: {Math.Abs(stress1.Mz_j - stress2.Mz_i):F6} N·mm");
+            Console.WriteLine($"和（符号反転チェック）: {stress1.Mz_j + stress2.Mz_i:F6} N·mm");
+
+            double stressTol = Math.Abs(expectedMomentAtNode2) * 0.01; // 1%の許容誤差
+
+            // 検証1: 要素1のj端と要素2のi端のモーメントが一致するか
+            bool momentsMatch = Math.Abs(stress1.Mz_j - stress2.Mz_i) < stressTol;
+            
+            // 検証2: 符号が反転しているか（和がゼロに近い）
+            bool signsReversed = Math.Abs(stress1.Mz_j + stress2.Mz_i) < stressTol;
+
+            if (signsReversed && !momentsMatch)
+            {
+                Console.WriteLine("\n⚠️ 警告: 節点2でのモーメントの符号が反転しています！");
+                Console.WriteLine("   要素1のj端と要素2のi端のモーメントは同じ値であるべきですが、");
+                Console.WriteLine("   現在は逆符号になっています。");
+                Console.WriteLine($"   |stress1.Mz_j| = {Math.Abs(stress1.Mz_j):F6}");
+                Console.WriteLine($"   |stress2.Mz_i| = {Math.Abs(stress2.Mz_i):F6}");
+                
+                Assert.Fail("節点共有位置でのモーメントの符号が反転しています。BeamElement.CalcElementStressの実装を確認してください。");
+            }
+            else if (momentsMatch)
+            {
+                Console.WriteLine("\n✓ OK: 節点2でのモーメントの符号は正しいです。");
+                
+                // 理論値との比較
+                Assert.AreEqual(expectedMomentAtNode2, stress1.Mz_j, stressTol,
+                    $"要素1のj端モーメント {stress1.Mz_j:F6} が理論値 {expectedMomentAtNode2:F6} と一致すべき");
+                Assert.AreEqual(expectedMomentAtNode2, stress2.Mz_i, stressTol,
+                    $"要素2のi端モーメント {stress2.Mz_i:F6} が理論値 {expectedMomentAtNode2:F6} と一致すべき");
+            }
+
+            // せん断力の確認
+            Console.WriteLine($"\n=== せん断力の確認 ===");
+            Console.WriteLine($"要素1 j端 Fy: {stress1.Fy_j:F6} N");
+            Console.WriteLine($"要素2 i端 Fy: {stress2.Fy_i:F6} N");
+            Console.WriteLine($"理論値: {-1.0:F6} N (下向き荷重)");
+
+            // せん断力も確認（符号反転の可能性）
+            bool shearMatch = Math.Abs(stress1.Fy_j - stress2.Fy_i) < 0.01;
+            bool shearReversed = Math.Abs(stress1.Fy_j + stress2.Fy_i) < 0.01;
+
+            if (shearReversed && !shearMatch)
+            {
+                Console.WriteLine("⚠️ 警告: せん断力の符号も反転しています！");
+            }
         }
 
         [TestMethod()]
@@ -836,8 +913,7 @@ namespace FEMur.Solver.Tests
             var model = new Model(new List<Node>(), elements, new List<Support>(), new List<Load>());
 
             // ノード数を確認（要素数+1になるはず)
-            Assert.AreEqual(numElements + 1, model.Nodes.Count,
-                $"{numElements}要素の場合、{numElements + 1}個のノードが生成されるべき");
+            Assert.AreEqual(numElements + 1, model.Nodes.Count, "ノード数が要素数+1であるべき");
 
             // 各要素のNodeIdsが正しく設定されているか確認
             for (int i = 0; i < numElements; i++)

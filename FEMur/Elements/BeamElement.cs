@@ -63,7 +63,6 @@ namespace FEMur.Elements
             double Izz = cs.Izz;
             double J = cs.J;
 
-            // CalcLocalAxisで計算済みの部材長を使用
             double L = Length;
 
             double ka = E * A / L;
@@ -71,76 +70,117 @@ namespace FEMur.Elements
             double kby = E * Iyy / (L * L * L);
             double kbz = E * Izz / (L * L * L);
 
-            var k11 = Matrix<double>.Build.Dense(6, 6);
-            //i端UX
-            k11[0, 0] = ka;//
-            //i端UY
-            k11[1, 1] = 12 * kbz;//
-            k11[1, 5] = 6 * kbz * L;//
-            //i端UZ
-            k11[2, 2] = 12 * kby;//
-            k11[2, 4] = -6 * kby * L;//
-            //i端RX
-            k11[3, 3] = kt;//
-            //i端RY
-            k11[4, 2] = -6 * kby * L;//
-            k11[4, 4] = 4 * kby * L * L;//
-            //i端RZ
-            k11[5, 1] = 6 * kbz * L;//
-            k11[5, 5] = 4 * kbz * L * L;//
+            var k_axial = Matrix<double>.Build.Dense(2, 2);
+            var k_torsion = Matrix<double>.Build.Dense(2, 2);
+            var k_bending_y = Matrix<double>.Build.Dense(4, 4);
+            var k_bending_z = Matrix<double>.Build.Dense(4, 4);
 
-            var k22 = Matrix<double>.Build.Dense(6, 6);
+            k_axial[0, 0] = ka;
+            k_axial[0, 1] = -ka;
+            k_axial[1, 0] = -ka;
+            k_axial[1, 1] = ka;
 
-            //j端UX
-            k22[0, 0] = ka; //
-            //j端UY
-            k22[1, 1] = 12 * kbz; //
-            k22[1, 5] = -6 * kbz * L; //
-            //j端UZ
-            k22[2, 2] = 12 * kby; //
-            k22[2, 4] = 6 * kby * L; //
-            //j端RX
-            k22[3, 3] = kt; //
-            //j端RY
-            k22[4, 2] = 6 * kby * L; //
-            k22[4, 4] = 4 * kby * L * L; //
-            //j端RZ
-            k22[5, 1] = -6 * kbz * L; //
-            k22[5, 5] = 4 * kbz * L * L; //
 
-            var k12 = Matrix<double>.Build.Dense(6, 6);
+            k_torsion[0, 0] = kt;
+            k_torsion[0, 1] = -kt;
+            k_torsion[1, 0] = -kt;
+            k_torsion[1, 1] = kt;
 
-            k12[0, 0] = -ka;
 
-            k12[1, 1] = -12 * kbz;
-            k12[1, 5] = 6 * kbz * L;
+            k_bending_y[0, 0] =  12 * kby;
+            k_bending_y[0, 1] = - 6 * kby * L;
+            k_bending_y[0, 2] = -12 * kby;
+            k_bending_y[0, 3] = - 6 * kby * L;
 
-            k12[2, 2] = -12 * kby;
-            k12[2, 4] = -6 * kby * L;
+            k_bending_y[1, 0] = - 6 * kby * L;
+            k_bending_y[1, 1] =  4 * kby * L * L;
+            k_bending_y[1, 2] =  6 * kby * L;
+            k_bending_y[1, 3] =  2 * kby * L * L;
 
-            k12[3, 3] = -kt;
+            k_bending_y[2, 0] = -12 * kby;
+            k_bending_y[2, 1] =  6 * kby * L;
+            k_bending_y[2, 2] =  12 * kby;
+            k_bending_y[2, 3] =  6 * kby * L;
 
-            k12[4, 2] = 6 * kby * L;
-            k12[4, 4] = 2 * kby * L * L;
+            k_bending_y[3, 0] = - 6 * kby * L;
+            k_bending_y[3, 1] =  2 * kby * L * L;
+            k_bending_y[3, 2] =  6 * kby * L;
+            k_bending_y[3, 3] =  4 * kby * L * L;
 
-            k12[5, 1] = -6 * kbz * L;
-            k12[5, 5] = 2 * kbz * L * L;
 
-            var k21 = k12.Transpose();
+            k_bending_z[0, 0] = 12 * kbz;
+            k_bending_z[0, 1] = -6 * kbz * L;
+            k_bending_z[0, 2] = -12 * kbz;
+            k_bending_z[0, 3] = -6 * kbz * L;
+
+            k_bending_z[1, 0] = -6 * kbz * L;
+            k_bending_z[1, 1] = 4 * kbz * L * L;
+            k_bending_z[1, 2] = 6 * kbz * L;
+            k_bending_z[1, 3] = 2 * kbz * L * L;
+
+            k_bending_z[2, 0] = -12 * kbz;
+            k_bending_z[2, 1] = 6 * kbz * L;
+            k_bending_z[2, 2] = 12 * kbz;
+            k_bending_z[2, 3] = 6 * kbz * L;
+
+            k_bending_z[3, 0] = -6 * kbz * L;
+            k_bending_z[3, 1] = 2 * kbz * L * L;
+            k_bending_z[3, 2] = 6 * kbz * L;
+            k_bending_z[3, 3] = 4 * kbz * L * L;
+
 
             var ke = Matrix<double>.Build.Dense(12, 12);
-
-            // 明示ループでブロック配置（SetSubMatrix に依存しない）
-            for (int r = 0; r < 6; r++)
+            // 軸方向(dx 0,6)
+            for (int i = 0; i < 2; i++)
             {
-                for (int c = 0; c < 6; c++)
+                for (int j = 0; j < 2; j++)
                 {
-                    ke[r, c] = k11[r, c]; // (0,0)
-                    ke[r, c + 6] = k12[r, c]; // (0,6)
-                    ke[r + 6, c] = k21[r, c]; // (6,0)
-                    ke[r + 6, c + 6] = k22[r, c]; // (6,6)
+                    ke[i * 6 + 0, j * 6 + 0] = k_axial[i, j];
                 }
             }
+            // ねじり(rx 3,9)
+            for (int i = 0; i < 2; i++)
+            {
+                for (int j = 0; j < 2; j++)
+                {
+                    ke[i * 6 + 3, j * 6 + 3] = k_torsion[i, j];
+                }
+            }
+            // 曲げY (dz 2,8 ,ry 4,10)
+            ke[2,2]     = k_bending_y[0,0];
+            ke[2,4]     = k_bending_y[0,1];
+            ke[2,8]     = k_bending_y[0,2];
+            ke[2,10]    = k_bending_y[0,3];
+            ke[4,2]     = k_bending_y[1,0];
+            ke[4,4]     = k_bending_y[1,1];
+            ke[4,8]     = k_bending_y[1,2];
+            ke[4,10]    = k_bending_y[1,3];
+            ke[8,2]     = k_bending_y[2,0];
+            ke[8,4]     = k_bending_y[2,1];
+            ke[8,8]     = k_bending_y[2,2];
+            ke[8,10]    = k_bending_y[2,3];
+            ke[10,2]    = k_bending_y[3,0];
+            ke[10,4]    = k_bending_y[3,1];
+            ke[10,8]    = k_bending_y[3,2];
+            ke[10,10]   = k_bending_y[3,3];
+
+            // 曲げZ(dy 1,7, rz 5,11)
+            ke[1,1]     = k_bending_z[0,0];
+            ke[1,5]     = k_bending_z[0,1];
+            ke[1,7]     = k_bending_z[0,2];
+            ke[1,11]    = k_bending_z[0,3];
+            ke[5,1]     = k_bending_z[1,0];
+            ke[5,5]     = k_bending_z[1,1];
+            ke[5,7]     = k_bending_z[1,2];
+            ke[5,11]    = k_bending_z[1,3];
+            ke[7,1]     = k_bending_z[2,0];
+            ke[7,5]     = k_bending_z[2,1];
+            ke[7,7]     = k_bending_z[2,2];
+            ke[7,11]    = k_bending_z[2,3];
+            ke[11,1]    = k_bending_z[3,0];
+            ke[11,5]    = k_bending_z[3,1];
+            ke[11,7]    = k_bending_z[3,2];
+            ke[11,11]   = k_bending_z[3,3];
 
             return ke;
         }

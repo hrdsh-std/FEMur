@@ -102,6 +102,17 @@ namespace FEMur.Solver
                 }
             }
 
+            //j端の断面力を負に反転
+            foreach (var stress in elementStresses)
+            {
+                stress.Fx_j = -stress.Fx_j;
+                stress.Fy_j = -stress.Fy_j;
+                stress.Fz_j = -stress.Fz_j;
+                stress.Mx_j = -stress.Mx_j;
+                stress.My_j = -stress.My_j;
+                stress.Mz_j = -stress.Mz_j;
+            }
+
             return elementStresses;
         }
 

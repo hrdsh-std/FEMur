@@ -41,7 +41,6 @@ namespace FEMur.Materials
         //鉄を返す静的メソッド
         public static Material_Isotropic Steel()
         {
-            // 単位は N/mm^2, 密度は未使用なら適当でOK
             return new Material_Isotropic(
                 id: 0,
                 family: "Isotropic",
@@ -51,6 +50,16 @@ namespace FEMur.Materials
                 density: 7.85e-9 // t/mm^3 等。未使用なら 0 でも可
             );
         }
-
+        public static Material_Isotropic Concrete()
+        {
+            return new Material_Isotropic(
+                id: 1,
+                family: "Isotropic",
+                name: "Concrete",
+                E: 30000.0,   // 30 GPa = 30000 N/mm^2
+                nu: 0.2,
+                density: 2.4e-9 // t/mm^3 等。未使用なら 0 でも可
+            );
+        }
     }
 }

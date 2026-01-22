@@ -18,7 +18,7 @@ namespace FEMurGH
         public override Guid Id => new Guid("b766d672-4707-42f1-911f-f18380cfac8d");
 
         //Return a string identifying you or your company.
-        public override string AuthorName => "";
+        public override string AuthorName => "Hrdsh";
 
         //Return a string representing your preferred contact details.
         public override string AuthorContact => "";
