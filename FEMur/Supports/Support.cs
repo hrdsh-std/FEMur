@@ -83,11 +83,26 @@ namespace FEMur.Supports
 
         public override string ToString()
         {
+            // 位置情報
+            string location;
             if (Position.HasValue)
             {
-                return $"Support at ({Position.Value.X:F2}, {Position.Value.Y:F2}, {Position.Value.Z:F2})";
+                location = $"Position=({Position.Value.X:F2}, {Position.Value.Y:F2}, {Position.Value.Z:F2})";
             }
-            return $"Support at NodeId={NodeId}";
+            else
+            {
+                location = $"NodeId={NodeId}";
+            }
+
+            // 支持条件を文字列化 (UX, UY, UZ, RX, RY, RZ)
+            string[] conditionNames = new string[6];
+            for (int i = 0; i < 6; i++)
+            {
+                conditionNames[i] = Conditions[i] ? "Fix" : "Free";
+            }
+            string conditionsStr = $"({string.Join(", ", conditionNames)})";
+
+            return $"Support at {location}, Conditions={conditionsStr}";
         }
     }
 }

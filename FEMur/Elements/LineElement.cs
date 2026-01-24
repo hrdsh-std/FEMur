@@ -193,11 +193,11 @@ namespace FEMur.Elements
             double eyx = LocalAxisY[0], eyy = LocalAxisY[1], eyz = LocalAxisY[2];
             double ezx = LocalAxisZ[0], ezy = LocalAxisZ[1], ezz = LocalAxisZ[2];
 
-            // グローバル→ローカル変換行列 R（行に ex, ey, ez を配置）
+            // ローカル→グローバル変換行列 R^T（列に ex, ey, ez を配置）
             var R = Matrix<double>.Build.Dense(3, 3);
-            R[0, 0] = exx; R[0, 1] = exy; R[0, 2] = exz;  // 行0: ex
-            R[1, 0] = eyx; R[1, 1] = eyy; R[1, 2] = eyz;  // 行1: ey
-            R[2, 0] = ezx; R[2, 1] = ezy; R[2, 2] = ezz;  // 行2: ez
+            R[0, 0] = exx; R[0, 1] = eyx; R[0, 2] = ezx;  // 列0: ex
+            R[1, 0] = exy; R[1, 1] = eyy; R[1, 2] = ezy;  // 列1: ey
+            R[2, 0] = exz; R[2, 1] = eyz; R[2, 2] = ezz;  // 列2: ez
 
             // 12x12 のブロック対角 T を明示ループで構成
             var T = Matrix<double>.Build.Dense(12, 12);

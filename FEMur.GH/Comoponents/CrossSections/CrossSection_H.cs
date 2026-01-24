@@ -6,7 +6,7 @@ namespace FEMurGH.Comoponents.CrossSections
 {
     /// <summary>
     /// H断面の CrossSection を生成するコンポーネント。
-    /// 入力: Id, Name, B, H, t_f, t_w, r
+    /// 入力: Name, H, B, t_w, t_f, r
     /// 出力: CrossSection_Beam（実体は CrossSection_H）
     /// </summary>
     public class CrossSection_H : GH_Component
@@ -20,14 +20,13 @@ namespace FEMurGH.Comoponents.CrossSections
 
         protected override void RegisterInputParams(GH_InputParamManager p)
         {
-            p.AddIntegerParameter("Id", "Id", "CrossSection Id", GH_ParamAccess.item, 0);
-            p.AddTextParameter("Name", "Name", "CrossSection name", GH_ParamAccess.item, "H-Section");
+            p.AddTextParameter("Name", "Name", "CrossSection name (optional, auto-generated if empty)", GH_ParamAccess.item, string.Empty);
 
-            p.AddNumberParameter("B", "B", "Flange width B [mm]", GH_ParamAccess.item, 200.0);
             p.AddNumberParameter("H", "H", "Overall height H [mm]", GH_ParamAccess.item, 100.0);
+            p.AddNumberParameter("B", "B", "Flange width B [mm]", GH_ParamAccess.item, 200.0);
+            p.AddNumberParameter("t_w", "t_w", "Web thickness t_w [mm]", GH_ParamAccess.item, 5.5);
             p.AddNumberParameter("t_f", "t_f", "Flange thickness t_f [mm]", GH_ParamAccess.item, 8.0);
-            p.AddNumberParameter("t_w", "t_w", "Web thickness t_w [mm]", GH_ParamAccess.item, 12.0);
-            p.AddNumberParameter("r", "r", "Root radius r [mm]", GH_ParamAccess.item, 6.0);
+            p.AddNumberParameter("r", "r", "Root radius r [mm]", GH_ParamAccess.item, 8.0);
 
             for (int i = 0; i < p.ParamCount; i++)
                 p[i].Optional = true;
@@ -40,22 +39,50 @@ namespace FEMurGH.Comoponents.CrossSections
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            int id = 0;
-            string name = "H-Section";
-            double B = 200.0, H = 100.0, tf = 8.0, tw = 12.0, r = 6.0;
+            string name = string.Empty;
+            double H = 100.0, B = 200.0, tw = 5.5, tf = 8.0, r = 8.0;
 
-            DA.GetData(0, ref id);
-            DA.GetData(1, ref name);
+            DA.GetData(0, ref name);
+            DA.GetData(1, ref H);
             DA.GetData(2, ref B);
-            DA.GetData(3, ref H);
+            DA.GetData(3, ref tw);
             DA.GetData(4, ref tf);
-            DA.GetData(5, ref tw);
-            DA.GetData(6, ref r);
+            DA.GetData(5, ref r);
 
-            // CrossSection_H は内部で A, Iyy, Izz, J, iy, iz を計算
-            CrossSection_Beam xsec = new FEMur.CrossSections.CrossSection_H(id, name ?? "H-Section", B, H, tf, tw, r);
+            // Name が空の場合は自動生成: H-HxBxtwxtf
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                // 各値を整数かどうかチェックして適切なフォーマットを選択
+                string hStr = FormatDimension(H);
+                string bStr = FormatDimension(B);
+                string twStr = FormatDimension(tw);
+                string tfStr = FormatDimension(tf);
+
+                name = $"H-{hStr}x{bStr}x{twStr}x{tfStr}";
+            }
+
+            // CrossSection_H を作成（Idなし）
+            CrossSection_Beam xsec = new FEMur.CrossSections.CrossSection_H(name, B, H, tf, tw, r);
 
             DA.SetData(0, xsec);
+        }
+
+        /// <summary>
+        /// 寸法値をフォーマット（整数の場合は小数点なし、小数の場合は必要な桁数のみ表示）
+        /// </summary>
+        private string FormatDimension(double value)
+        {
+            // 整数かどうかをチェック（誤差を考慮）
+            if (Math.Abs(value - Math.Round(value)) < 1e-10)
+            {
+                // 整数の場合は小数点なし
+                return value.ToString("F0");
+            }
+            else
+            {
+                // 小数の場合は不要な末尾のゼロを削除
+                return value.ToString("G");
+            }
         }
 
         protected override System.Drawing.Bitmap Icon => null;

@@ -34,7 +34,7 @@ namespace FEMurGH.Goo
         {
             if (Value == null)
                 return "Null Material";
-            return $"Material(ID:{Value.Id}, Name:{Value.Name}, E:{Value.E})";
+            return $"Material(Name:{Value.Name}, E:{Value.E})";
         }
 
         public override bool CastFrom(object source)

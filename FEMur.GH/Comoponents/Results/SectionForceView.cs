@@ -467,26 +467,26 @@ namespace FEMurGH.Comoponents.Results
             {
                 // 単色の場合は中央に1つの値だけ表示
                 double displayValue = ConvertSectionForceValue((minValue + maxValue) / 2, isMoment);
-                display.Draw2dText($"{displayValue:F1}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY + colorBarHeight / 2 - 5), false, 10);
+                display.Draw2dText($"{displayValue:F2}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY + colorBarHeight / 2 - 5), false, 10);
             }
             else
             {
                 // 通常のラベル表示
                 // 最大値・最小値のラベル（カラーバーの右側）
-                display.Draw2dText($"{displayMax:F1}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY), false, 10);
-                display.Draw2dText($"{displayMin:F1}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY + colorBarHeight - 10), false, 10);
+                display.Draw2dText($"{displayMax:F2}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY), false, 10);
+                display.Draw2dText($"{displayMin:F2}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY + colorBarHeight - 10), false, 10);
                 
                 // 中間値のラベルも追加（オプション）
                 double displayMid = ConvertSectionForceValue((minValue + maxValue) / 2, isMoment);
-                display.Draw2dText($"{displayMid:F1}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY + colorBarHeight / 2 - 5), false, 10);
+                display.Draw2dText($"{displayMid:F2}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY + colorBarHeight / 2 - 5), false, 10);
 
                 // 1/4値のラベルも追加（オプション）
                 double displayQuarter1 = ConvertSectionForceValue(minValue + (maxValue - minValue) * 0.25, isMoment);
-                display.Draw2dText($"{displayQuarter1:F1}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY + (colorBarHeight * 3 / 4) - 5), false, 10);
+                display.Draw2dText($"{displayQuarter1:F2}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY + (colorBarHeight * 3 / 4) - 5), false, 10);
 
                 // 3/4値のラベルも追加（オプション）
                 double displayQuarter3 = ConvertSectionForceValue(minValue + (maxValue - minValue) * 0.75, isMoment);
-                display.Draw2dText($"{displayQuarter3:F1}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY + colorBarHeight / 4 - 5), false, 10);
+                display.Draw2dText($"{displayQuarter3:F2}", Color.Black, new Point2d(colorBarX + colorBarWidth + 5, colorBarY + colorBarHeight / 4 - 5), false, 10);
             }
         }
 

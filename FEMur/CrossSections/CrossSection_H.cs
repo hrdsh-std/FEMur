@@ -15,8 +15,8 @@ namespace FEMur.CrossSections
         public double r { get; set; } // 断面の内側のRmm
 
         public CrossSection_H() { }
-        public CrossSection_H(int id, string name, double b, double h, double t_f, double t_w, double r)
-            : base(id, name)
+        public CrossSection_H(string name, double b, double h, double t_f, double t_w, double r)
+            : base(name)
         {
             B = b;
             H = h;
@@ -40,7 +40,7 @@ namespace FEMur.CrossSections
         }
         public override string ToString()
         {
-            return $"CrossSection_H(Id={Id}, Name={Name})";
+            return $"CrossSection_H(Name={Name})";
         }
 
     }

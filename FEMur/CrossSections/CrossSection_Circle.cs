@@ -23,12 +23,11 @@ namespace FEMur.CrossSections
         /// <summary>
         /// パラメータ指定コンストラクタ
         /// </summary>
-        /// <param name="id">断面ID</param>
         /// <param name="name">断面名</param>
         /// <param name="d">外径 [mm]</param>
-        /// <param name="t">板厚 [mm]</param>
-        public CrossSection_Circle(int id, string name, double d, double t)
-            : base(id, name)
+        /// <param name="t">板厚 [mm]（0の場合は中実円形）</param>
+        public CrossSection_Circle(string name, double d, double t = 0)
+            : base(name)
         {
             D = d;
             this.t = t;
@@ -50,28 +49,67 @@ namespace FEMur.CrossSections
         /// </summary>
         protected void CalculateSectionProperties()
         {
-            double r_out = D / 2.0;           // 外側半径
-            double d_in = D - 2 * t;          // 内径
-            double r_in = d_in / 2.0;         // 内側半径
+            if (t <= 0 || t >= D / 2.0)
+            {
+                // 中実円形断面として計算
+                CalculateSolidCircularSection();
+            }
+            else
+            {
+                // 中空（円形鋼管）として計算
+                CalculateHollowCircularSection();
+            }
+        }
+
+        /// <summary>
+        /// 中実円形断面の計算
+        /// </summary>
+        private void CalculateSolidCircularSection()
+        {
+            double R = D / 2.0;  // 半径
 
             // 断面積 [mm²]
-            // A = π * (r_out² - r_in²)
-            this.A = Math.PI * (r_out * r_out - r_in * r_in);
+            this.A = Math.PI * R * R;
 
             // 断面二次モーメント [mm⁴]
-            // I = (π/64) * (D⁴ - d_in⁴) = (π/4) * (r_out⁴ - r_in⁴)
-            double I = Math.PI * (Math.Pow(r_out, 4) - Math.Pow(r_in, 4)) / 4.0;
+            // 円形断面はY軸、Z軸周りで対称
+            double I = (Math.PI * Math.Pow(D, 4)) / 64.0;
             this.Iyy = I;
-            this.Izz = I;  // 円形断面はY軸、Z軸で対称
+            this.Izz = I;
 
             // 断面二次半径 [mm]
-            // i = √(I/A)
-            this.iy = Math.Sqrt(I / A);
-            this.iz = Math.Sqrt(I / A);
+            this.iy = D / 4.0;  // R/2
+            this.iz = D / 4.0;
 
-            // ねじり定数（極断面二次モーメント）[mm⁴]
-            // J = Ip = (π/32) * (D⁴ - d_in⁴) = (π/2) * (r_out⁴ - r_in⁴)
-            this.J = Math.PI * (Math.Pow(r_out, 4) - Math.Pow(r_in, 4)) / 2.0;
+            // ねじり定数 [mm⁴]
+            // 中実円形断面: J = Ip (極断面二次モーメント)
+            this.J = (Math.PI * Math.Pow(D, 4)) / 32.0;
+        }
+
+        /// <summary>
+        /// 中空円形鋼管の計算
+        /// </summary>
+        private void CalculateHollowCircularSection()
+        {
+            double R_outer = D / 2.0;        // 外半径
+            double R_inner = R_outer - t;    // 内半径
+
+            // 断面積 [mm²]
+            this.A = Math.PI * (R_outer * R_outer - R_inner * R_inner);
+
+            // 断面二次モーメント [mm⁴]
+            double I = (Math.PI / 64.0) * (Math.Pow(D, 4) - Math.Pow(D - 2 * t, 4));
+            this.Iyy = I;
+            this.Izz = I;
+
+            // 断面二次半径 [mm]
+            double i = Math.Sqrt(I / A);
+            this.iy = i;
+            this.iz = i;
+
+            // ねじり定数 [mm⁴]
+            // 円形中空断面: J = Ip (極断面二次モーメント)
+            this.J = (Math.PI / 32.0) * (Math.Pow(D, 4) - Math.Pow(D - 2 * t, 4));
         }
 
         /// <summary>
@@ -89,7 +127,14 @@ namespace FEMur.CrossSections
         /// </summary>
         public override string ToString()
         {
-            return $"CrossSection_Circle(Id={Id}, Name={Name}, D={D:F1}×t={t:F1})";
+            if (t <= 0)
+            {
+                return $"CrossSection_Circle(Name={Name}(Solid))";
+            }
+            else
+            {
+                return $"CrossSection_Circle(Name={Name}(Hollow))";
+            }
         }
 
         /// <summary>
@@ -97,7 +142,7 @@ namespace FEMur.CrossSections
         /// </summary>
         public override object Clone()
         {
-            return new CrossSection_Circle(Id, Name, D, t);
+            return new CrossSection_Circle(Name, D, t);
         }
     }
 }

@@ -186,7 +186,7 @@ namespace FEMurGH.Comoponents.Results
         private static string FormatValue(double v)
         {
             // 小数第1位まで表示、指数表示なし
-            return v.ToString("F1");
+            return v.ToString("F2");
         }
 
         private static Point3d ToRhinoPoint(Point3 p)
@@ -385,7 +385,7 @@ namespace FEMurGH.Comoponents.Results
 
             var outline = new Polyline();
 
-            if (intersections)
+            if (intersections && a > 0 && a < 1)
             {
                 Point3d p00 = line0.PointAt(line0Params[0]);
                 Point3d p01 = line0.PointAt(line0Params[1]);
@@ -432,7 +432,7 @@ namespace FEMurGH.Comoponents.Results
                 mesh.Faces.AddFace(0, 1, 2);
                 mesh.Faces.AddFace(0, 2, 3);
 
-                int alpha = 180; // 透明度 0-255（180 = 約70%の不透明度）
+                int alpha = 180; // 透明度 0-255
                 Color color_pi = Color.FromArgb(alpha, GetColor(value_i, minValue, maxValue));
                 Color color_pi_off = Color.FromArgb(alpha, GetColor(value_i, minValue, maxValue));
                 Color color_pj_off = Color.FromArgb(alpha, GetColor(value_j, minValue, maxValue));
@@ -448,57 +448,7 @@ namespace FEMurGH.Comoponents.Results
 
                 //輪郭線
                 outline = new Polyline(new[] { pi, pi_off, pj_off, pj, pi });
-
-                //boundary.Add(new LineCurve(pi, pj));
-                //boundary.Add(new LineCurve(pj_off, pi_off));
-                //boundary.Add(new LineCurve(pi, pi_off));
-                //boundary.Add(new LineCurve(pj, pj_off));
-                //Curve[] joined = Curve.JoinCurves(boundary, 0.001);
-                //if (joined.Length > 0 && joined[0].IsClosed)
-                //{
-                //    Brep[] breps = Brep.CreatePlanarBreps(joined, 0.001);
-                //    if (breps != null && breps.Length > 0)
-                //    {
-                //        regions.Add(breps[0]);
-                //    }
-                //}
             }
-
-
-
-
-
-
-
-
-
-            //// 頂点を追加（4点）
-            //// 順序: pi(0), pi_off(1), pj_off(2), pj(3)
-            //mesh.Vertices.Add(pi);       // 0: i端軸上
-            //mesh.Vertices.Add(pi_off);   // 1: i端オフセット
-            //mesh.Vertices.Add(pj_off);   // 2: j端オフセット
-            //mesh.Vertices.Add(pj);       // 3: j端軸上
-
-            //// 面を追加（2つの三角形で四角形を構成）
-            //mesh.Faces.AddFace(0, 1, 2); // 三角形1: pi -> pi_off -> pj_off
-            //mesh.Faces.AddFace(0, 2, 3); // 三角形2: pi -> pj_off -> pj
-
-            //// 各頂点に色を設定（アルファ値を指定して半透明に）
-            //Color color_pi = Color.FromArgb(alpha, GetColor(value_i, minValue, maxValue));
-            //Color color_pi_off = Color.FromArgb(alpha, GetColor(value_i, minValue, maxValue));
-            //Color color_pj_off = Color.FromArgb(alpha, GetColor(value_j, minValue, maxValue));
-            //Color color_pj = Color.FromArgb(alpha, GetColor(value_j, minValue, maxValue));
-
-            //mesh.VertexColors.Add(color_pi);
-            //mesh.VertexColors.Add(color_pi_off);
-            //mesh.VertexColors.Add(color_pj_off);
-            //mesh.VertexColors.Add(color_pj);
-
-            //// 法線を計算
-            //mesh.Normals.ComputeNormals();
-
-            //// 輪郭線
-            //var outline = new Polyline(new[] { pi, pi_off, pj_off, pj, pi });
 
             // DisplayMaterialを半透明に設定
             var material = new DisplayMaterial(Color.White);

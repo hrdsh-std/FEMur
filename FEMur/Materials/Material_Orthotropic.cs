@@ -1,33 +1,31 @@
-﻿using System.Runtime.Serialization;
+﻿using System;
+using System.Runtime.Serialization;
 
 namespace FEMur.Materials
 {
-    public class Material_Orthotropic:Material, ISerializable
+    public class Material_Orthotropic : Material
     {
         public double Ex { get; private set; }
         public double Ey { get; private set; }
         public double Ez { get; private set; }
-
         public double Gxy { get; private set; }
         public double Gyz { get; private set; }
         public double Gzx { get; private set; }
-
         public double Nuxy { get; private set; }
         public double Nuyz { get; private set; }
         public double Nuzx { get; private set; }
 
+        public Material_Orthotropic() { }
+
         public Material_Orthotropic(
-            int id,
             string family,
             string name,
             double density,
             double ex, double ey, double ez,
             double gxy, double gyz, double gzx,
             double nuxy, double nuyz, double nuzx)
+            : base(family, name, ex, nuxy, density)
         {
-            Id = id;
-            Family = family;
-            Name = name;
             Ex = ex;
             Ey = ey;
             Ez = ez;
@@ -39,46 +37,14 @@ namespace FEMur.Materials
             Nuzx = nuzx;
         }
 
-        protected Material_Orthotropic(SerializationInfo info, StreamingContext context)
+        public Material_Orthotropic(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            Ex = info.GetDouble("Ex");
-            Ey = info.GetDouble("Ey");
-            Ez = info.GetDouble("Ez");
-
-            Gxy = info.GetDouble("Gxy");
-            Gyz = info.GetDouble("Gyz");
-            Gzx = info.GetDouble("Gzx");
-
-            Nuxy = info.GetDouble("Nuxy");
-            Nuyz = info.GetDouble("Nuyz");
-            Nuzx = info.GetDouble("Nuzx");
-        }
-
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            info.AddValue("Name", Name);
-            info.AddValue("Density", Density);
-
-            info.AddValue("Ex", Ex);
-            info.AddValue("Ey", Ey);
-            info.AddValue("Ez", Ez);
-
-            info.AddValue("Gxy", Gxy);
-            info.AddValue("Gyz", Gyz);
-            info.AddValue("Gzx", Gzx);
-
-            info.AddValue("Nuxy", Nuxy);
-            info.AddValue("Nuyz", Nuyz);
-            info.AddValue("Nuzx", Nuzx);
         }
 
         public override string ToString()
         {
-            return base.ToString() +
-                   $", Ex={Ex}, Ey={Ey}, Ez={Ez}, " +
-                   $"Gxy={Gxy}, Gyz={Gyz}, Gzx={Gzx}, " +
-                   $"νxy={Nuxy}, νyz={Nuyz}, νzx={Nuzx}";
+            return $"Material_Orthotropic: {Name}, Ex={Ex:F0}, Ey={Ey:F0}, Ez={Ez:F0} N/mm^2";
         }
     }
 }

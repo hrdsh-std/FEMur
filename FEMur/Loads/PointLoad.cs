@@ -62,12 +62,20 @@ namespace FEMur.Loads
 
         public override string ToString()
         {
+            string location;
             if (Position.HasValue)
             {
-                return $"PointLoad at ({Position.Value.X:F2}, {Position.Value.Y:F2}, {Position.Value.Z:F2}), " +
-                       $"Force=({Force.X:F2}, {Force.Y:F2}, {Force.Z:F2})";
+                location = $"Position=({Position.Value.X:F2}, {Position.Value.Y:F2}, {Position.Value.Z:F2})";
             }
-            return $"PointLoad at NodeId={NodeId}, Force=({Force.X:F2}, {Force.Y:F2}, {Force.Z:F2})";
+            else
+            {
+                location = $"NodeId={NodeId}";
+            }
+
+            string forceStr = $"Force=({Force.X:F2}, {Force.Y:F2}, {Force.Z:F2})";
+            string momentStr = $"Moment=({Moment.X:F2}, {Moment.Y:F2}, {Moment.Z:F2})";
+
+            return $"PointLoad at {location}, {forceStr}, {momentStr}";
         }
     }
 }

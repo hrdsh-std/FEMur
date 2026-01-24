@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using Rhino.Geometry;
 using FEMur.Nodes;
 using FEMur.Elements;
 using FEMur.CrossSections;
+using Rhino.DocObjects;
+using System.Windows.Media.Animation;
 
 namespace FEMurGH.Comoponents.Models
 {

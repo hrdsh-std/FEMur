@@ -92,9 +92,9 @@ namespace FEMur.Solver
                         }
                     }
 
-                    // グローバル変位を局所変位に変換
+                    // グローバル変位を局所変位に変換（Tの転置を使用）
                     Matrix<double> T = element.CalcTransformationMatrix(model.Nodes);
-                    Vector<double> elementDispLocal = T * elementDispGlobal;
+                    Vector<double> elementDispLocal = T.Transpose() * elementDispGlobal;
 
                     // 断面力を計算
                     var stress = beamElement.CalcElementStress(elementDispLocal, model.Nodes);
@@ -212,22 +212,24 @@ namespace FEMur.Solver
                             lineElement.LocalAxisZ != null)
                         {
                             // グローバル荷重をローカル座標系に変換
+                            // R: グローバル→ローカル変換行列（行に基底ベクトルを配置）
                             var R = Matrix<double>.Build.DenseOfRowArrays(
-                                lineElement.LocalAxisX,
-                                lineElement.LocalAxisY,
-                                lineElement.LocalAxisZ
+                                lineElement.LocalAxisX,  // 行0: ex (局所X軸)
+                                lineElement.LocalAxisY,  // 行1: ey (局所Y軸)
+                                lineElement.LocalAxisZ   // 行2: ez (局所Z軸)
                             );
                             
-                            // グローバル→ローカル変換: Q_local = R * Q_global
+                            // グローバル→ローカル変換: v_local = R * v_global
                             var qGlobal = Vector<double>.Build.DenseOfArray(new[] 
                             { 
-                                elementLoad.QLocal.X, 
+                                elementLoad.QLocal.X,  // 本当はQGlobalという名前が適切
                                 elementLoad.QLocal.Y, 
                                 elementLoad.QLocal.Z 
                             });
                             
                             var qLocal = R * qGlobal;
                             
+
                             // ローカル荷重で等価節点荷重を計算
                             var tempElementLoad = new ElementLoad(
                                 elementLoad.ElementId,

@@ -10,7 +10,6 @@ namespace FEMur.CrossSections
     public abstract class CrossSection:ICloneable,ISerializable
     {
         #region　properties
-        public virtual int Id { get; set; }
         public string Name { get; set; } = string.Empty;
 
         #endregion
@@ -22,11 +21,9 @@ namespace FEMur.CrossSections
         public CrossSection(CrossSection other)
         {
             this.Name = other.Name;
-            this.Id = other.Id;
         }
-        protected CrossSection(int id,string name)
+        protected CrossSection(string name)
         {
-            Id = id;
             Name = name;
         }
 

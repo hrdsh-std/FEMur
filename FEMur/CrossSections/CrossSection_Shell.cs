@@ -15,9 +15,8 @@ namespace FEMur.CrossSections
         {
         }
 
-        public CrossSection_Shell(int id, double thickness)
+        public CrossSection_Shell(double thickness)
         {
-            Id = id;
             Thickness = thickness;
         }
 

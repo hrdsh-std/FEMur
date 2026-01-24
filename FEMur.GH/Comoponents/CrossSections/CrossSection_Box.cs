@@ -6,7 +6,7 @@ namespace FEMurGH.Comoponents.CrossSections
 {
     /// <summary>
     /// 角形鋼管断面の CrossSection を生成するコンポーネント。
-    /// 入力: Id, Name, B, H, t, r
+    /// 入力: Name, B, H, t, r
     /// 出力: CrossSection_Beam（実体は CrossSection_Box）
     /// </summary>
     public class CrossSection_Box : GH_Component
@@ -20,13 +20,12 @@ namespace FEMurGH.Comoponents.CrossSections
 
         protected override void RegisterInputParams(GH_InputParamManager p)
         {
-            p.AddIntegerParameter("Id", "Id", "CrossSection Id", GH_ParamAccess.item, 0);
-            p.AddTextParameter("Name", "Name", "CrossSection name", GH_ParamAccess.item, "Box-Section");
+            p.AddTextParameter("Name", "Name", "CrossSection name (optional, auto-generated if empty)", GH_ParamAccess.item, string.Empty);
 
             p.AddNumberParameter("B", "B", "Width B [mm]", GH_ParamAccess.item, 100.0);
             p.AddNumberParameter("H", "H", "Height H [mm]", GH_ParamAccess.item, 100.0);
-            p.AddNumberParameter("t", "t", "Thickness t [mm]", GH_ParamAccess.item, 6.0);
-            p.AddNumberParameter("r", "r", "Corner radius r [mm] (optional, default=1.5*t)", GH_ParamAccess.item, -1.0);
+            p.AddNumberParameter("t", "t", "Thickness t [mm] (0 for solid rectangle)", GH_ParamAccess.item, 0.0);
+            p.AddNumberParameter("r", "r", "Corner radius r [mm] (optional, default=1.5*t for hollow, ignored for solid)", GH_ParamAccess.item, -1.0);
 
             for (int i = 0; i < p.ParamCount; i++)
                 p[i].Optional = true;
@@ -39,21 +38,46 @@ namespace FEMurGH.Comoponents.CrossSections
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            int id = 0;
-            string name = "Box-Section";
-            double B = 100.0, H = 100.0, t = 6.0, r = -1.0;
+            string name = string.Empty;
+            double B = 100.0, H = 100.0, t = 0.0, r = -1.0;
 
-            DA.GetData(0, ref id);
-            DA.GetData(1, ref name);
-            DA.GetData(2, ref B);
-            DA.GetData(3, ref H);
-            DA.GetData(4, ref t);
-            DA.GetData(5, ref r);
+            DA.GetData(0, ref name);
+            DA.GetData(1, ref B);
+            DA.GetData(2, ref H);
+            DA.GetData(3, ref t);
+            DA.GetData(4, ref r);
 
-            // CrossSection_Box は内部で A, Iyy, Izz, J, iy, iz を計算
-            CrossSection_Beam xsec = new FEMur.CrossSections.CrossSection_Box(id, name ?? "Box-Section", B, H, t, r);
+            // Name が空の場合は自動生成
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                if (t > 0)
+                {
+                    // 中空: □-BxHxt
+                    name = $"□-{FormatDimension(B)}x{FormatDimension(H)}x{FormatDimension(t)}";
+                }
+                else
+                {
+                    // 中実: □-BxH
+                    name = $"□-{FormatDimension(B)}x{FormatDimension(H)}";
+                }
+            }
+
+            // CrossSection_Box を作成
+            CrossSection_Beam xsec = new FEMur.CrossSections.CrossSection_Box(name, B, H, t, r);
 
             DA.SetData(0, xsec);
+        }
+
+        private string FormatDimension(double value)
+        {
+            if (Math.Abs(value - Math.Round(value)) < 1e-10)
+            {
+                return value.ToString("F0");
+            }
+            else
+            {
+                return value.ToString("G");
+            }
         }
 
         protected override System.Drawing.Bitmap Icon => null;

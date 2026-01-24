@@ -9,7 +9,6 @@ namespace FEMur.Materials
 {
     public abstract class Material:ISerializable
     {
-        public int Id { get; set; }
         public string Family { get; protected set; } = "Steel";
         public string Name { get; protected set; } = "SS400";
         public double E { get; protected set; } = 20500.0;
@@ -26,9 +25,8 @@ namespace FEMur.Materials
         public double Density { get; protected set; }
         
         protected Material(){}
-        protected Material(int id ,string family,string name, double E, double nu, double density)
+        protected Material(string family, string name, double E, double nu, double density)
         {
-            this.Id = id;
             this.Family = family;
             this.Name = name;
             this.E = E;
@@ -49,7 +47,7 @@ namespace FEMur.Materials
         }
         public override string ToString()
         {
-            return $"Material: {Name}, Density: {Density} kg/m^3";
+            return $"Material: {Name}, Density: {Density} t/mm^3";
         }
     }
 }

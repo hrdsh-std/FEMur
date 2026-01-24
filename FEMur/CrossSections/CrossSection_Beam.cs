@@ -25,12 +25,12 @@ namespace FEMur.CrossSections
         public  CrossSection_Beam()
         {
         }
-        public CrossSection_Beam(int id, string name)
-            : base(id, name)
+        public CrossSection_Beam(string name)
+            : base(name)
         {
         }
-        public CrossSection_Beam(int id, string name, double a, double J,double Iyy, double Izz,double iy, double iz)
-            : base(id, name)
+        public CrossSection_Beam(string name, double a, double J,double Iyy, double Izz,double iy, double iz)
+            : base(name)
         {
             A = a;
             this.J = J;
