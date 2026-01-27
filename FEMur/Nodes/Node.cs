@@ -64,6 +64,7 @@ namespace FEMur.Nodes
             N_DOF
         }
 
+
         public override string ToString()
         {
             // 座標を小数第2位までで表示

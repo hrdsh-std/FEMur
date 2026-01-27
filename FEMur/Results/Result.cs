@@ -19,9 +19,15 @@ namespace FEMur.Results
         /// </summary>
         public List<ElementStress> ElementStresses { get; set; }
 
+        /// <summary>
+        /// 節点反力（拘束点での反力とモーメント）
+        /// </summary>
+        public List<ReactionForce> ReactionForces { get; set; }
+
         public Result()
         {
             ElementStresses = new List<ElementStress>();
+            ReactionForces = new List<ReactionForce>();
         }
     }
 }

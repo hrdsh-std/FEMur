@@ -109,23 +109,23 @@ namespace FEMur.Elements
 
 
             k_bending_z[0, 0] = 12 * kbz;
-            k_bending_z[0, 1] = -6 * kbz * L;
+            k_bending_z[0, 1] = 6 * kbz * L;
             k_bending_z[0, 2] = -12 * kbz;
-            k_bending_z[0, 3] = -6 * kbz * L;
+            k_bending_z[0, 3] = 6 * kbz * L;
 
-            k_bending_z[1, 0] = -6 * kbz * L;
+            k_bending_z[1, 0] = 6 * kbz * L;
             k_bending_z[1, 1] = 4 * kbz * L * L;
-            k_bending_z[1, 2] = 6 * kbz * L;
+            k_bending_z[1, 2] = -6 * kbz * L;
             k_bending_z[1, 3] = 2 * kbz * L * L;
 
             k_bending_z[2, 0] = -12 * kbz;
-            k_bending_z[2, 1] = 6 * kbz * L;
+            k_bending_z[2, 1] = -6 * kbz * L;
             k_bending_z[2, 2] = 12 * kbz;
-            k_bending_z[2, 3] = 6 * kbz * L;
+            k_bending_z[2, 3] = -6 * kbz * L;
 
-            k_bending_z[3, 0] = -6 * kbz * L;
+            k_bending_z[3, 0] = 6 * kbz * L;
             k_bending_z[3, 1] = 2 * kbz * L * L;
-            k_bending_z[3, 2] = 6 * kbz * L;
+            k_bending_z[3, 2] = -6 * kbz * L;
             k_bending_z[3, 3] = 4 * kbz * L * L;
 
 

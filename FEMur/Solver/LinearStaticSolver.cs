@@ -43,7 +43,8 @@ namespace FEMur.Solver
             var result = new Result
             {
                 NodalDisplacements = displacements,
-                ElementStresses = CalcElementStresses(model, displacements)
+                ElementStresses = CalcElementStresses(model, displacements),
+                ReactionForces = CalcReactionForces(model, globalK, globalF, displacements)
             };
 
             // 追加: Modelに結果を格納
@@ -63,6 +64,57 @@ namespace FEMur.Solver
 
             Vector<double> globalF = AssembleGlobalLoad(model);
             return solve(globalK, globalF, model);
+        }
+
+        /// <summary>
+        /// 反力を計算
+        /// R = K × U - F (拘束自由度のみ)
+        /// </summary>
+        /// <param name="model">解析モデル</param>
+        /// <param name="globalK">全体剛性マトリクス（Support springを含む）</param>
+        /// <param name="globalF">全体荷重ベクトル</param>
+        /// <param name="displacements">変位ベクトル</param>
+        /// <returns>反力のリスト</returns>
+        protected List<ReactionForce> CalcReactionForces(Model model, Matrix<double> globalK, 
+            Vector<double> globalF, Vector<double> displacements)
+        {
+            var reactionForces = new List<ReactionForce>();
+
+            // 内力ベクトルを計算: F_internal = K × U
+            Vector<double> internalForces = globalK * displacements;
+
+            // 反力 = 内力 - 外力
+            Vector<double> reactions = internalForces - globalF;
+
+            // 拘束された節点ごとに反力を集計
+            foreach (var support in model.Supports)
+            {
+                int nodeIndex = model.Nodes.FindIndex(n => n.Id == support.NodeId);
+                if (nodeIndex < 0)
+                    continue; // 既にチェック済みだが念のため
+
+                int baseIndex = nodeIndex * dof;
+
+                double fx = 0.0, fy = 0.0, fz = 0.0;
+                double mx = 0.0, my = 0.0, mz = 0.0;
+
+                // 拘束された自由度のみ反力を取得
+                if (support.Conditions[0]) fx = reactions[baseIndex + 0];
+                if (support.Conditions[1]) fy = reactions[baseIndex + 1];
+                if (support.Conditions[2]) fz = reactions[baseIndex + 2];
+                if (support.Conditions[3]) mx = reactions[baseIndex + 3];
+                if (support.Conditions[4]) my = reactions[baseIndex + 4];
+                if (support.Conditions[5]) mz = reactions[baseIndex + 5];
+
+                // 反力が存在する場合のみリストに追加
+                if (Math.Abs(fx) > 1e-12 || Math.Abs(fy) > 1e-12 || Math.Abs(fz) > 1e-12 ||
+                    Math.Abs(mx) > 1e-12 || Math.Abs(my) > 1e-12 || Math.Abs(mz) > 1e-12)
+                {
+                    reactionForces.Add(new ReactionForce(support.NodeId, fx, fy, fz, mx, my, mz));
+                }
+            }
+
+            return reactionForces;
         }
 
         /// <summary>

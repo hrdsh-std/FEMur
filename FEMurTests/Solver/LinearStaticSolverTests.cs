@@ -27,7 +27,7 @@ namespace FEMur.Solver.Tests
             List<Node> nodes = new List<Node> { node1, node2, node3 };
 
             Material material = Material_Isotropic.Steel(); // E は N/mm^2 を仮定
-            CrossSection_H crossSection = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0); // mm
+            CrossSection_H crossSection = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0); // mm
 
             // 2要素に分割
             BeamElement element1 = new BeamElement(0, node1, node2, material, crossSection);
@@ -150,7 +150,7 @@ namespace FEMur.Solver.Tests
             var nodes = new List<Node> { n0, n1, n2 };
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             var e0 = new BeamElement(0, n0, n1, material, cs);
             var e1 = new BeamElement(1, n1, n2, material, cs);
@@ -200,7 +200,7 @@ namespace FEMur.Solver.Tests
             var nodes = new List<Node> { n0, n1, n2 };
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             var e0 = new BeamElement(0, n0, n1, material, cs);
             var e1 = new BeamElement(1, n1, n2, material, cs);
@@ -256,7 +256,7 @@ namespace FEMur.Solver.Tests
             }
 
             Material material = Material_Isotropic.Steel(); // E: N/mm^2
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0); // mm
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0); // mm
 
             var elements = new List<ElementBase>(nodeCount - 1);
             for (int i = 0; i < nodeCount - 1; i++)
@@ -331,10 +331,10 @@ namespace FEMur.Solver.Tests
             Material material = Material_Isotropic.Steel();
             
             // 柱の断面（強軸方向が大きい）
-            CrossSection_H csColumn = new CrossSection_H(0, "Column", 200.0, 200.0, 12.0, 8.0, 6.0);
+            CrossSection_H csColumn = new CrossSection_H("Column", 200.0, 200.0, 12.0, 8.0, 6.0);
             
             // 梁の断面
-            CrossSection_H csBeam = new CrossSection_H(1, "Beam", 200.0, 300.0, 12.0, 8.0, 6.0);
+            CrossSection_H csBeam = new CrossSection_H("Beam", 200.0, 300.0, 12.0, 8.0, 6.0);
 
             // 要素定義
             var e0 = new BeamElement(0, n0, n1, material, csColumn); // 左柱
@@ -395,7 +395,7 @@ namespace FEMur.Solver.Tests
             var nodes = new List<Node> { n0, n1, n2 };
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 200.0, 12.0, 8.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 200.0, 12.0, 8.0, 6.0);
 
             var e0 = new BeamElement(0, n0, n1, material, cs); // 鉛直柱
             var e1 = new BeamElement(1, n1, n2, material, cs); // 水平梁
@@ -448,8 +448,8 @@ namespace FEMur.Solver.Tests
             var nodes = new List<Node> { n0, n1, n2, n3, n4 };
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H csColumn = new CrossSection_H(0, "Column", 200.0, 200.0, 12.0, 8.0, 6.0);
-            CrossSection_H csBeam = new CrossSection_H(1, "Beam", 200.0, 300.0, 12.0, 8.0, 6.0);
+            CrossSection_H csColumn = new CrossSection_H("Column", 200.0, 200.0, 12.0, 8.0, 6.0);
+            CrossSection_H csBeam = new CrossSection_H("Beam", 200.0, 300.0, 12.0, 8.0, 6.0);
 
             var e0 = new BeamElement(0, n0, n1, material, csColumn);
             var e1 = new BeamElement(1, n1, n2, material, csBeam);
@@ -499,7 +499,7 @@ namespace FEMur.Solver.Tests
             var nodes = new List<Node> { n0, n1 };
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             var e0 = new BeamElement(0, n0, n1, material, cs);
             var elements = new List<ElementBase> { e0 };
@@ -554,7 +554,7 @@ namespace FEMur.Solver.Tests
             var nodes = new List<Node> { n0, n1, n2 };
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             var e0 = new BeamElement(0, n0, n1, material, cs);
             var e1 = new BeamElement(1, n1, n2, material, cs);
@@ -605,7 +605,7 @@ namespace FEMur.Solver.Tests
             var nodes = new List<Node> { n0, n1, n2 };
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             var e0 = new BeamElement(0, n0, n1, material, cs);
             var e1 = new BeamElement(1, n1, n2, material, cs);
@@ -676,7 +676,7 @@ namespace FEMur.Solver.Tests
             var nodes = new List<Node> { n0, n1 };
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             var e0 = new BeamElement(0, n0, n1, material, cs);
             var elements = new List<ElementBase> { e0 };
@@ -732,7 +732,7 @@ namespace FEMur.Solver.Tests
             var nodes = new List<Node> { n0, n1 };
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             var e0 = new BeamElement(0, n0, n1, material, cs);
             var elements = new List<ElementBase> { e0 };
@@ -792,7 +792,7 @@ namespace FEMur.Solver.Tests
             var nodes = new List<Node> { n0, n1, n2 };
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             var e0 = new BeamElement(0, n0, n1, material, cs);
             var e1 = new BeamElement(1, n1, n2, material, cs);
@@ -834,7 +834,7 @@ namespace FEMur.Solver.Tests
             double L = 1000.0;
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             // Point3で要素を定義（NodeIdsはnull）
             var point1 = new Point3(0.0, 0.0, 0.0);
@@ -898,7 +898,7 @@ namespace FEMur.Solver.Tests
             double elementLength = L / numElements;
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             // Point3で要素を定義
             var elements = new List<ElementBase>();
@@ -967,8 +967,8 @@ namespace FEMur.Solver.Tests
             double W = 4000.0; // 梁のスパン
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H csColumn = new CrossSection_H(0, "Column", 200.0, 200.0, 12.0, 8.0, 6.0);
-            CrossSection_H csBeam = new CrossSection_H(1, "Beam", 200.0, 300.0, 12.0, 8.0, 6.0);
+            CrossSection_H csColumn = new CrossSection_H("Column", 200.0, 200.0, 12.0, 8.0, 6.0);
+            CrossSection_H csBeam = new CrossSection_H("Beam", 200.0, 300.0, 12.0, 8.0, 6.0);
 
             // Point3で要素を定義
             var elements = new List<ElementBase>
@@ -1033,7 +1033,7 @@ namespace FEMur.Solver.Tests
             var nodes = new List<Node> { existingNode };
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             // 最初の要素: 既存ノードを使用
             var element1 = new BeamElement(0, existingNode, new Node(1, L / 2.0, 0.0, 0.0), material, cs);
@@ -1091,7 +1091,7 @@ namespace FEMur.Solver.Tests
             double tolerance = 0.001; // Modelのデフォルト許容誤差
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             // わずかに異なる座標（許容誤差内）で要素を定義
             var elements = new List<ElementBase>
@@ -1139,7 +1139,7 @@ namespace FEMur.Solver.Tests
             double L = 1000.0;
 
             Material material = Material_Isotropic.Steel();
-            CrossSection_H cs = new CrossSection_H(0, "Test", 200.0, 100.0, 8.0, 12.0, 6.0);
+            CrossSection_H cs = new CrossSection_H("Test", 200.0, 100.0, 8.0, 12.0, 6.0);
 
             // Point3で要素を定義
             var element = new BeamElement(0,

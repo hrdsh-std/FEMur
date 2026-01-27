@@ -24,7 +24,7 @@ namespace FEMurTests.Models
 
         private CrossSection_Beam CreateTestCrossSection()
         {
-            return new CrossSection_Box(1, "TestBox", 100, 100, 5);
+            return new CrossSection_Box("TestBox", 100, 100, 5);
         }
 
         #endregion

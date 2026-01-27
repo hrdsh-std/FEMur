@@ -71,7 +71,7 @@ namespace FEMurGH.Comoponents.Results
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
-            // 出力なし（ビューポート表示のみ）
+            pManager.AddGenericParameter("AnalyzedModel", "AM", "FEMur Model (pass-through)", GH_ParamAccess.item);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -97,6 +97,7 @@ namespace FEMurGH.Comoponents.Results
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Model has not been solved yet. Run LinearStaticSolver first.");
                 _preview = SectionForcePreview.Empty;
+                DA.SetData(0, _model); // 出力を追加
                 return;
             }
 
@@ -115,6 +116,9 @@ namespace FEMurGH.Comoponents.Results
                 ShowNumbers,
                 this  // thisを追加
             );
+
+            // 出力（入力をそのまま渡す）
+            DA.SetData(0, _model);
         }
 
         /// <summary>

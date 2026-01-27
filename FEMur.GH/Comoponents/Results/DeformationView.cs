@@ -86,6 +86,7 @@ namespace FEMurGH.Comoponents.Results
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
+            pManager.AddGenericParameter("AnalyzedModel", "AM", "FEMur Model (pass-through)", GH_ParamAccess.item);
             pManager.AddLineParameter("DeformedModel", "DM", "Deformed model geometry (bake-able)", GH_ParamAccess.list);
         }
 
@@ -116,6 +117,7 @@ namespace FEMurGH.Comoponents.Results
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Model has not been solved yet. Run LinearStaticSolver first.");
                 ClearCaches();
+                DA.SetData(0, _model); // 出力を追加
                 return;
             }
 
@@ -132,7 +134,8 @@ namespace FEMurGH.Comoponents.Results
             CalculateStatistics();
 
             // 出力
-            DA.SetDataList(0, _deformedLines);
+            DA.SetData(0, _model);           // 1個目の出力: AnalyzedModel（パススルー）
+            DA.SetDataList(1, _deformedLines); // 2個目の出力: DeformedModel
         }
 
         #endregion
@@ -569,7 +572,7 @@ namespace FEMurGH.Comoponents.Results
             int legendY = topMargin;
 
             // タイトル
-            display.Draw2dText("Deformation Statistics", Color.Black, new Point2d(legendX, legendY), false, 14, "Arial");
+            display.Draw2dText("Deformation Summary", Color.Black, new Point2d(legendX, legendY), false, 14, "Arial");
             legendY += lineHeight + 5;
 
             // 統計情報を描画

@@ -191,10 +191,6 @@ namespace FEMurGH.Comoponents.Results
         private void RenderTab(Graphics graphics)
         {
             GH_Palette palette = GH_Palette.Black;
-            if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Error)
-                palette = GH_Palette.Error;
-            else if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Warning)
-                palette = GH_Palette.Warning;
 
             // タブ全体のカプセルを描画
             GH_Capsule tabCapsule = GH_Capsule.CreateCapsule(sectionForcesArea, palette,2,4);

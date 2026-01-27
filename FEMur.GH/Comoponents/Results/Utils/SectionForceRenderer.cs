@@ -97,34 +97,45 @@ namespace FEMurGH.Comoponents.Results
 
                 // 断面力タイプに応じてオフセット方向を決定
                 Vector3d offsetDir;
+                bool invertSign = false; // 符号反転フラグ
+                
                 switch (forceType)
                 {
                     case SectionForceView.SectionForceType.Fx:  // 軸力 → Z軸方向
                         offsetDir = new Vector3d(ez[0], ez[1], ez[2]);
+                        invertSign = false; // 正の軸力（引張）は+Z方向
                         break;
                     case SectionForceView.SectionForceType.Fy:  // せん断力Y → Y軸方向
                         offsetDir = new Vector3d(ey[0], ey[1], ey[2]);
+                        invertSign = false; // せん断力は正の方向
                         break;
                     case SectionForceView.SectionForceType.Fz:  // せん断力Z → Z軸方向
                         offsetDir = new Vector3d(ez[0], ez[1], ez[2]);
+                        invertSign = false; // せん断力は正の方向
                         break;
                     case SectionForceView.SectionForceType.Mx:  // ねじりモーメント → Z軸方向
                         offsetDir = new Vector3d(ez[0], ez[1], ez[2]);
+                        invertSign = false; // ねじりは正の方向
                         break;
                     case SectionForceView.SectionForceType.My:  // 曲げモーメントY → Z軸方向
                         offsetDir = new Vector3d(ez[0], ez[1], ez[2]);
+                        invertSign = true; // ← My は符号を反転（-Z方向が引張）
                         break;
                     case SectionForceView.SectionForceType.Mz:  // 曲げモーメントZ → Y軸方向
                         offsetDir = new Vector3d(ey[0], ey[1], ey[2]);
+                        invertSign = false; // Mz は正のまま（+Y方向が引張）
                         break;
                     default:
                         offsetDir = new Vector3d(ey[0], ey[1], ey[2]);
+                        invertSign = false;
                         break;
                 }
 
                 // スケールを適用してオフセット点を計算
-                Point3d pi_offset = pi - offsetDir * (forceValue_i * scale);
-                Point3d pj_offset = pj - offsetDir * (forceValue_j * scale);
+                // invertSign = true の場合は符号を反転
+                double signFactor = invertSign ? -1.0 : 1.0;
+                Point3d pi_offset = pi + offsetDir * (forceValue_i * scale * signFactor);
+                Point3d pj_offset = pj + offsetDir * (forceValue_j * scale * signFactor);
 
                 // メッシュを生成
                 if (showFilled)
