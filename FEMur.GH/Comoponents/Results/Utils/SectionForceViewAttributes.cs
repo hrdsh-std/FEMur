@@ -58,7 +58,7 @@ namespace FEMurGH.Comoponents.Results
         private RectangleF sectionForcesArea;
         private RectangleF filledCheckBox;
         private RectangleF numbersCheckBox;
-        private RectangleF legendCheckBox; // 追加
+        private RectangleF legendCheckBox;
         private RectangleF fxRadio;
         private RectangleF fyRadio;
         private RectangleF fzRadio;
@@ -66,7 +66,7 @@ namespace FEMurGH.Comoponents.Results
         private RectangleF myRadio;
         private RectangleF mzRadio;
 
-        // 単位選択用のフィールド（ラベル不要）
+        // 単位選択用のフィールド
         private RectangleF _forceUnitDropdownBounds;
         private RectangleF _lengthUnitDropdownBounds;
 
@@ -84,7 +84,6 @@ namespace FEMurGH.Comoponents.Results
             if (Cmp.IsSectionForcesTabExpanded)
             {
                 extraHeight += MENU_CONTENT_HEIGHT;
-                // 単位選択エリアの高さを追加（展開時のみ）
                 extraHeight += UNIT_AREA_HEIGHT;
                 extraHeight += COMPONENT_MARGIN_VERTICAL * 2;
             }
@@ -114,7 +113,7 @@ namespace FEMurGH.Comoponents.Results
                 numbersCheckBox = CreateControlRect(rightPosition, currentY);
                 currentY += LINE_HEIGHT_NORMAL;
 
-                legendCheckBox = CreateControlRect(rightPosition, currentY); // 追加
+                legendCheckBox = CreateControlRect(rightPosition, currentY);
                 currentY += LINE_HEIGHT_SECTION;
 
                 fxRadio = CreateControlRect(rightPosition, currentY);
@@ -135,11 +134,10 @@ namespace FEMurGH.Comoponents.Results
                 mzRadio = CreateControlRect(rightPosition, currentY);
                 currentY += LINE_HEIGHT_NORMAL;
                 
-                // 単位選択エリアのレイアウト（展開時のみ）
+                // 単位選択エリアのレイアウト
                 float unitStartY = bounds.Bottom - UNIT_AREA_HEIGHT + UNIT_SPACING;
                 float centerX = bounds.Left + bounds.Width / 2;
                 
-                // ドロップダウンの幅をコンポーネント幅の半分より少し小さく設定
                 float dropdownWidth = (bounds.Width - (COMPONENT_MARGIN_HORIZONTAL * 2)) / 2 - UNIT_SPACING;
                 float totalWidth = dropdownWidth * 2 + UNIT_SPACING;
                 float leftX = centerX - totalWidth / 2;
@@ -160,7 +158,6 @@ namespace FEMurGH.Comoponents.Results
             }
             else
             {
-                // 非展開時はドロップダウンの領域を空にする
                 _forceUnitDropdownBounds = RectangleF.Empty;
                 _lengthUnitDropdownBounds = RectangleF.Empty;
             }
@@ -182,7 +179,6 @@ namespace FEMurGH.Comoponents.Results
                 if (Cmp.IsSectionForcesTabExpanded)
                 {
                     RenderMenuContent(graphics);
-                    // 単位選択エリアの描画（展開時のみ）
                     RenderUnitSelection(graphics);
                 }
             }
@@ -192,12 +188,10 @@ namespace FEMurGH.Comoponents.Results
         {
             GH_Palette palette = GH_Palette.Black;
 
-            // タブ全体のカプセルを描画
-            GH_Capsule tabCapsule = GH_Capsule.CreateCapsule(sectionForcesArea, palette,2,4);
+            GH_Capsule tabCapsule = GH_Capsule.CreateCapsule(sectionForcesArea, palette, 2, 4);
             tabCapsule.Render(graphics, Selected, Cmp.Locked, false);
             tabCapsule.Dispose();
 
-            // タブテキストの描画
             StringFormat format = new StringFormat
             {
                 Alignment = StringAlignment.Center,
@@ -206,7 +200,6 @@ namespace FEMurGH.Comoponents.Results
             
             using (SolidBrush textBrush = new SolidBrush(TAB_TEXT_COLOR))
             {
-                // テキストの左側にマージンを設けて描画
                 RectangleF textArea = new RectangleF(
                     sectionForcesArea.Left,
                     sectionForcesArea.Top,
@@ -230,8 +223,8 @@ namespace FEMurGH.Comoponents.Results
                 graphics.DrawString("Numbers", font, textBrush, leftMargin, numbersCheckBox.Top);
                 DrawCheckBox(graphics, numbersCheckBox, Cmp.ShowNumbers);
 
-                graphics.DrawString("Legend", font, textBrush, leftMargin, legendCheckBox.Top); // 追加
-                DrawCheckBox(graphics, legendCheckBox, Cmp.ShowLegend); // 追加
+                graphics.DrawString("Legend", font, textBrush, leftMargin, legendCheckBox.Top);
+                DrawCheckBox(graphics, legendCheckBox, Cmp.ShowLegend);
 
                 DrawRadioButtonWithLabel(graphics, font, textBrush, leftMargin, "Fx", fxRadio,
                     Cmp.SelectedForceType == SectionForceView.SectionForceType.Fx);
@@ -250,47 +243,11 @@ namespace FEMurGH.Comoponents.Results
         
         private void RenderUnitSelection(Graphics graphics)
         {
-            // ドロップダウンの描画（個別にカプセルで囲む）
-            DrawDropdown(graphics, _forceUnitDropdownBounds, Cmp.SelectedForceUnit.ToString());
-            DrawDropdown(graphics, _lengthUnitDropdownBounds, Cmp.SelectedLengthUnit.ToString());
-        }
-        
-        private void DrawDropdown(Graphics graphics, RectangleF bounds, string text)
-        {
-            // ドロップダウン個別のカプセル
-            GH_Palette palette = GH_Palette.Normal;
-            if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Error)
-                palette = GH_Palette.Error;
-            else if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Warning)
-                palette = GH_Palette.Warning;
-
-            GH_Capsule capsule = GH_Capsule.CreateCapsule(bounds, palette);
-            capsule.Render(graphics, Selected, Cmp.Locked, false);
-            capsule.Dispose();
-
-            bounds.Inflate(-2, -2);
-
-            // ドロップダウンの背景（カプセルの上に白背景を描画）
-            graphics.FillRectangle(Brushes.White, bounds);
-            
-            // テキスト
-            StringFormat format = new StringFormat
-            {
-                Alignment = StringAlignment.Near,
-                LineAlignment = StringAlignment.Center
-            };
-            RectangleF textBounds = new RectangleF(bounds.X + 2, bounds.Y, bounds.Width - 12, bounds.Height);
-            graphics.DrawString(text, GH_FontServer.Small, Brushes.Black, textBounds, format);
-            
-            // ドロップダウン矢印
-            float arrowSize = 4;
-            PointF[] arrow = new PointF[]
-            {
-                new PointF(bounds.Right - arrowSize * 2, bounds.Y + bounds.Height / 2 - arrowSize / 2),
-                new PointF(bounds.Right - arrowSize, bounds.Y + bounds.Height / 2 - arrowSize / 2),
-                new PointF(bounds.Right - arrowSize * 1.5f, bounds.Y + bounds.Height / 2 + arrowSize / 2)
-            };
-            graphics.FillPolygon(Brushes.Black, arrow);
+            // DropdownRendererヘルパークラスを使用
+            DropdownRenderer.DrawDropdown(graphics, _forceUnitDropdownBounds, 
+                Cmp.SelectedForceUnit.ToString(), Cmp, Selected);
+            DropdownRenderer.DrawDropdown(graphics, _lengthUnitDropdownBounds, 
+                Cmp.SelectedLengthUnit.ToString(), Cmp, Selected);
         }
 
         private void DrawRadioButtonWithLabel(Graphics graphics, Font font, Brush textBrush,
@@ -347,21 +304,18 @@ namespace FEMurGH.Comoponents.Results
         {
             if (e.Button == System.Windows.Forms.MouseButtons.Left)
             {
-                // 力の単位ドロップダウンをクリック
                 if (_forceUnitDropdownBounds.Contains(e.CanvasLocation))
                 {
                     ShowForceUnitMenu(e.CanvasLocation);
                     return GH_ObjectResponse.Handled;
                 }
                 
-                // 長さの単位ドロップダウンをクリック
                 if (_lengthUnitDropdownBounds.Contains(e.CanvasLocation))
                 {
                     ShowLengthUnitMenu(e.CanvasLocation);
                     return GH_ObjectResponse.Handled;
                 }
                 
-                // タブクリックで展開/折りたたみ
                 if (sectionForcesArea.Contains(e.CanvasLocation))
                 {
                     Cmp.IsSectionForcesTabExpanded = !Cmp.IsSectionForcesTabExpanded;
@@ -369,10 +323,8 @@ namespace FEMurGH.Comoponents.Results
                     return GH_ObjectResponse.Handled;
                 }
 
-                // 展開時のみチェックボックス/ラジオボタン処理
                 if (Cmp.IsSectionForcesTabExpanded)
                 {
-                    // Filled チェックボックス
                     if (filledCheckBox.Contains(e.CanvasLocation))
                     {
                         Cmp.ShowFilled = !Cmp.ShowFilled;
@@ -380,7 +332,6 @@ namespace FEMurGH.Comoponents.Results
                         return GH_ObjectResponse.Handled;
                     }
 
-                    // Numbers チェックボックス
                     if (numbersCheckBox.Contains(e.CanvasLocation))
                     {
                         Cmp.ShowNumbers = !Cmp.ShowNumbers;
@@ -388,7 +339,6 @@ namespace FEMurGH.Comoponents.Results
                         return GH_ObjectResponse.Handled;
                     }
 
-                    // Legend チェックボックス（追加）
                     if (legendCheckBox.Contains(e.CanvasLocation))
                     {
                         Cmp.ShowLegend = !Cmp.ShowLegend;
@@ -396,7 +346,6 @@ namespace FEMurGH.Comoponents.Results
                         return GH_ObjectResponse.Handled;
                     }
 
-                    // 断面力タイプのラジオボタン
                     if (fxRadio.Contains(e.CanvasLocation))
                     {
                         Cmp.SelectedForceType = SectionForceView.SectionForceType.Fx;
@@ -460,19 +409,14 @@ namespace FEMurGH.Comoponents.Results
                 menu.Items.Add(item);
             }
             
-            // Grasshopperキャンバスを取得
             GH_Canvas canvas = Grasshopper.Instances.ActiveCanvas;
             
-            // ドロップダウンの左下の位置（キャンバス座標）
             PointF canvasPoint = new PointF(
                 _forceUnitDropdownBounds.Left,
                 _forceUnitDropdownBounds.Bottom
             );
             
-            // キャンバスのビューポート変換を考慮してコントロール座標に変換
             PointF controlPoint = canvas.Viewport.ProjectPoint(canvasPoint);
-            
-            // コントロール座標をスクリーン座標に変換
             Point screenLocation = canvas.PointToScreen(Point.Round(controlPoint));
             
             menu.Show(screenLocation);
@@ -494,19 +438,14 @@ namespace FEMurGH.Comoponents.Results
                 menu.Items.Add(item);
             }
             
-            // Grasshopperキャンバスを取得
             GH_Canvas canvas = Grasshopper.Instances.ActiveCanvas;
             
-            // ドロップダウンの左下の位置（キャンバス座標）
             PointF canvasPoint = new PointF(
                 _lengthUnitDropdownBounds.Left,
                 _lengthUnitDropdownBounds.Bottom
             );
             
-            // キャンバスのビューポート変換を考慮してコントロール座標に変換
             PointF controlPoint = canvas.Viewport.ProjectPoint(canvasPoint);
-            
-            // コントロール座標をスクリーン座標に変換
             Point screenLocation = canvas.PointToScreen(Point.Round(controlPoint));
             
             menu.Show(screenLocation);
