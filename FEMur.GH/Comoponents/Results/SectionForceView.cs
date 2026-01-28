@@ -6,6 +6,7 @@ using Grasshopper.Kernel;
 using Rhino.Geometry;
 using FEMur.Models;
 using FEMur.Elements;
+using FEMur.Common.Units; // 追加
 using FEMurGH.Comoponents.Results;
 
 namespace FEMurGH.Comoponents.Results
@@ -15,13 +16,13 @@ namespace FEMurGH.Comoponents.Results
         // 表示設定（UIから切り替え）
         public bool ShowFilled { get; set; } = false;
         public bool ShowNumbers { get; set; } = false;
-        public bool ShowLegend { get; set; } = true; // Legendスイッチを追加
+        public bool ShowLegend { get; set; } = true;
         public SectionForceType SelectedForceType { get; set; } = SectionForceType.None;
 
         // 展開タブの状態
         public bool IsSectionForcesTabExpanded { get; set; } = false;
 
-        // 単位設定
+        // 単位設定（FEMur.Common.Unitsの列挙型を使用）
         public ForceUnit SelectedForceUnit { get; set; } = ForceUnit.N;
         public LengthUnit SelectedLengthUnit { get; set; } = LengthUnit.mm;
 
@@ -36,17 +37,7 @@ namespace FEMurGH.Comoponents.Results
             Mz   // 曲げモーメント Z
         }
 
-        public enum ForceUnit
-        {
-            N,   // ニュートン
-            kN   // キロニュートン
-        }
-
-        public enum LengthUnit
-        {
-            mm,  // ミリメートル
-            m    // メートル
-        }
+        // ForceUnit, LengthUnit の列挙型定義を削除
 
         // 入力キャッシュ
         private Model _model;
@@ -522,11 +513,11 @@ namespace FEMurGH.Comoponents.Results
 
             if (isMoment)
             {
-                return $"{SelectedForceUnit}·{SelectedLengthUnit}";
+                return UnitConverter.GetMomentUnitSymbol(SelectedForceUnit, SelectedLengthUnit);
             }
             else
             {
-                return SelectedForceUnit.ToString();
+                return UnitConverter.GetForceUnitSymbol(SelectedForceUnit);
             }
         }
 
@@ -599,15 +590,7 @@ namespace FEMurGH.Comoponents.Results
         /// </summary>
         private double GetForceConversionFactor()
         {
-            switch (SelectedForceUnit)
-            {
-                case ForceUnit.N:
-                    return 1.0; // N (基準単位)
-                case ForceUnit.kN:
-                    return 0.001; // N → kN
-                default:
-                    return 1.0;
-            }
+            return UnitConverter.GetForceConversionFactor(SelectedForceUnit);
         }
 
         /// <summary>
@@ -615,15 +598,7 @@ namespace FEMurGH.Comoponents.Results
         /// </summary>
         private double GetLengthConversionFactor()
         {
-            switch (SelectedLengthUnit)
-            {
-                case LengthUnit.mm:
-                    return 1.0; // mm (基準単位)
-                case LengthUnit.m:
-                    return 0.001; // mm → m
-                default:
-                    return 1.0;
-            }
+            return UnitConverter.GetLengthConversionFactor(SelectedLengthUnit);
         }
 
         /// <summary>
@@ -631,24 +606,21 @@ namespace FEMurGH.Comoponents.Results
         /// </summary>
         private double GetMomentConversionFactor()
         {
-            return GetForceConversionFactor() * GetLengthConversionFactor();
+            return UnitConverter.GetMomentConversionFactor(SelectedForceUnit, SelectedLengthUnit);
         }
 
         /// <summary>
         /// 断面力値を現在の単位系に変換
         /// </summary>
-        /// <param name="value">内部単位系の値（N または N·mm）</param>
-        /// <param name="isMoment">モーメントかどうか</param>
-        /// <returns>変換後の値</returns>
         public double ConvertSectionForceValue(double value, bool isMoment)
         {
             if (isMoment)
             {
-                return value * GetMomentConversionFactor();
+                return UnitConverter.ConvertMoment(value, SelectedForceUnit, SelectedLengthUnit);
             }
             else
             {
-                return value * GetForceConversionFactor();
+                return UnitConverter.ConvertForce(value, SelectedForceUnit);
             }
         }
     }

@@ -1,9 +1,11 @@
-using System;
-using System.Drawing;
+using FEMur.Common.Units;
 using Grasshopper.GUI;
 using Grasshopper.GUI.Canvas;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Attributes;
+using System;
+using System.Drawing;
+using System.Windows.Forms;
 
 namespace FEMurGH.Comoponents.Results
 {
@@ -30,11 +32,21 @@ namespace FEMurGH.Comoponents.Results
         private const float LABEL_HEIGHT = 12f;
 
         private const int CHECKBOX_COUNT = 6; // Fx, Fy, Fz, Mx, My, Mz
-        private float MENU_CONTENT_HEIGHT => LABEL_HEIGHT + LINE_HEIGHT + MENU_TOP_PADDING + MENU_BOTTOM_PADDING;
 
         private static readonly Color CONTROL_FILL_COLOR = Color.FromArgb(80, 80, 80);
         private static readonly Color TEXT_COLOR = Color.Black;
         private static readonly Color TAB_TEXT_COLOR = Color.White;
+
+        // 単位選択エリアの定数
+        private const float UNIT_AREA_BOTTOM_MARGIN = 4f;
+        private const float UNIT_DROPDOWN_HEIGHT = 16f;
+        private const float UNIT_DROPDOWN_WIDTH = 60f;
+        private const float UNIT_LABEL_WIDTH = 40f;
+        private const float UNIT_SPACING = 2f;
+
+        private float MENU_CONTENT_HEIGHT => LABEL_HEIGHT + LINE_HEIGHT + MENU_TOP_PADDING + MENU_BOTTOM_PADDING;
+        private float UNIT_CONTENT_HEIGHT => UNIT_DROPDOWN_HEIGHT + UNIT_AREA_BOTTOM_MARGIN;
+        private float TOTAL_EXTRA_HEIGHT => MENU_CONTENT_HEIGHT + UNIT_CONTENT_HEIGHT;
 
         #endregion
 
@@ -44,12 +56,17 @@ namespace FEMurGH.Comoponents.Results
 
         private RectangleF reactionsArea;
         private RectangleF menuContentArea;
+        private RectangleF unitContentArea;
         private RectangleF fxRadio;
         private RectangleF fyRadio;
         private RectangleF fzRadio;
         private RectangleF mxRadio;
         private RectangleF myRadio;
         private RectangleF mzRadio;
+
+        //単位設定用フィールド
+        private RectangleF _forceUnitDropdownBounds;
+        private RectangleF _lengthUnitDropdownBounds;
 
         #endregion
 
@@ -61,28 +78,31 @@ namespace FEMurGH.Comoponents.Results
         {
             base.Layout();
 
+            RectangleF originalbounds = GH_Convert.ToRectangle(Bounds);
             RectangleF bounds = GH_Convert.ToRectangle(Bounds);
 
             // コンポーネントの幅は変更しない
 
             float extraHeight = TAB_HEIGHT + TAB_MARGIN_TOP + TAB_MARGIN_BOTTOM;
-            if (Cmp.IsReactionsTabExpanded)
+            if (Cmp.IsReactionForceTabExpanded)
             {
-                extraHeight += MENU_CONTENT_HEIGHT;
+                extraHeight += TOTAL_EXTRA_HEIGHT;
             }
 
             bounds.Height += extraHeight;
             Bounds = bounds;
 
-            float tabY = bounds.Bottom - extraHeight + TAB_MARGIN_TOP;
+            // Reactionsタブのレイアウト
+            float tabY = originalbounds.Bottom + TAB_MARGIN_TOP;
             reactionsArea = new RectangleF(
-                bounds.Left + COMPONENT_MARGIN_HORIZONTAL,
-                tabY,
-                bounds.Width - (COMPONENT_MARGIN_HORIZONTAL * 2),
-                TAB_HEIGHT
+                bounds.Left + COMPONENT_MARGIN_HORIZONTAL, // X位置
+                tabY, // Y位置
+                bounds.Width - (COMPONENT_MARGIN_HORIZONTAL * 2), // 幅
+                TAB_HEIGHT  // 高さ
             );
 
-            if (Cmp.IsReactionsTabExpanded)
+            // メニューコンテンツのレイアウト
+            if (Cmp.IsReactionForceTabExpanded)
             {
                 float menuTop = reactionsArea.Bottom;
                 menuContentArea = new RectangleF(
@@ -107,6 +127,40 @@ namespace FEMurGH.Comoponents.Results
                 mxRadio = new RectangleF(startX + RADIO_BUTTON_SPACING * 3, currentY, RADIO_BUTTON_SIZE, RADIO_BUTTON_SIZE);
                 myRadio = new RectangleF(startX + RADIO_BUTTON_SPACING * 4, currentY, RADIO_BUTTON_SIZE, RADIO_BUTTON_SIZE);
                 mzRadio = new RectangleF(startX + RADIO_BUTTON_SPACING * 5, currentY, RADIO_BUTTON_SIZE, RADIO_BUTTON_SIZE);
+
+                // 単位選択エリアのレイアウト
+                unitContentArea = new RectangleF(
+                    bounds.Left + COMPONENT_MARGIN_HORIZONTAL,
+                    menuContentArea.Bottom,
+                    bounds.Width - (COMPONENT_MARGIN_HORIZONTAL * 2),
+                    UNIT_CONTENT_HEIGHT
+                );
+
+                float unitStartY = unitContentArea.Top + UNIT_SPACING;
+                float centerX = bounds.Left + bounds.Width / 2;
+
+                float dropdownWidth = (bounds.Width - (COMPONENT_MARGIN_HORIZONTAL * 2)) / 2 - UNIT_SPACING;
+                float totalWidth = dropdownWidth * 2 + UNIT_SPACING;
+                float leftX = centerX - totalWidth / 2;
+
+                _forceUnitDropdownBounds = new RectangleF(
+                    leftX,
+                    unitStartY,
+                    dropdownWidth,
+                    UNIT_DROPDOWN_HEIGHT
+                );
+
+                _lengthUnitDropdownBounds = new RectangleF(
+                    leftX + dropdownWidth + UNIT_SPACING,
+                    unitStartY,
+                    dropdownWidth,
+                    UNIT_DROPDOWN_HEIGHT
+                );
+            }
+            else
+            {
+                _forceUnitDropdownBounds = RectangleF.Empty;
+                _lengthUnitDropdownBounds = RectangleF.Empty;
             }
         }
 
@@ -122,9 +176,10 @@ namespace FEMurGH.Comoponents.Results
             {
                 RenderTab(graphics);
 
-                if (Cmp.IsReactionsTabExpanded)
+                if (Cmp.IsReactionForceTabExpanded)
                 {
                     RenderMenuContent(graphics);
+                    RenderUnitSelection(graphics);
                 }
             }
         }
@@ -159,7 +214,7 @@ namespace FEMurGH.Comoponents.Results
         /// </summary>
         private void RenderMenuContent(Graphics graphics)
         {
-            // メニュー背景のカプセルを描画（Supportコンポーネントと同様）
+            // メニュー背景のカプセルを描画
             GH_Palette palette = GH_Palette.White;
             if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Error)
                 palette = GH_Palette.Error;
@@ -213,6 +268,14 @@ namespace FEMurGH.Comoponents.Results
                 DrawRadioButton(graphics, mzRadio, Cmp.ShowMz);
             }
         }
+        private void RenderUnitSelection(Graphics graphics)
+        {
+            // DropdownRendererヘルパークラスを使用
+            DropdownRenderer.DrawDropdown(graphics, _forceUnitDropdownBounds,
+                Cmp.SelectedForceUnit.ToString(), Cmp, Selected);
+            DropdownRenderer.DrawDropdown(graphics, _lengthUnitDropdownBounds,
+                Cmp.SelectedLengthUnit.ToString(), Cmp, Selected);
+        }
 
         /// <summary>
         /// ラジオボタンを描画（○形式、Supportと同じ）
@@ -250,41 +313,51 @@ namespace FEMurGH.Comoponents.Results
                 // タブクリックで展開/折りたたみ
                 if (reactionsArea.Contains(e.CanvasLocation))
                 {
-                    Cmp.IsReactionsTabExpanded = !Cmp.IsReactionsTabExpanded;
+                    Cmp.IsReactionForceTabExpanded = !Cmp.IsReactionForceTabExpanded;
                     Cmp.ExpireSolution(true);
                     return GH_ObjectResponse.Handled;
                 }
 
-                // 展開時のみラジオボタン処理
-                if (Cmp.IsReactionsTabExpanded)
+                // 展開時のみラジオボタンと単位設定の処理
+                if (Cmp.IsReactionForceTabExpanded)
                 {
-                    if (HandleRadioButtonClick(fxRadio, e.CanvasLocation, 
+                    if (HandleRadioButtonClick(fxRadio, e.CanvasLocation,
                         () => Cmp.ShowFx, v => Cmp.ShowFx = v))
                         return GH_ObjectResponse.Handled;
 
-                    if (HandleRadioButtonClick(fyRadio, e.CanvasLocation, 
+                    if (HandleRadioButtonClick(fyRadio, e.CanvasLocation,
                         () => Cmp.ShowFy, v => Cmp.ShowFy = v))
                         return GH_ObjectResponse.Handled;
 
-                    if (HandleRadioButtonClick(fzRadio, e.CanvasLocation, 
+                    if (HandleRadioButtonClick(fzRadio, e.CanvasLocation,
                         () => Cmp.ShowFz, v => Cmp.ShowFz = v))
                         return GH_ObjectResponse.Handled;
 
-                    if (HandleRadioButtonClick(mxRadio, e.CanvasLocation, 
+                    if (HandleRadioButtonClick(mxRadio, e.CanvasLocation,
                         () => Cmp.ShowMx, v => Cmp.ShowMx = v))
                         return GH_ObjectResponse.Handled;
 
-                    if (HandleRadioButtonClick(myRadio, e.CanvasLocation, 
+                    if (HandleRadioButtonClick(myRadio, e.CanvasLocation,
                         () => Cmp.ShowMy, v => Cmp.ShowMy = v))
                         return GH_ObjectResponse.Handled;
 
-                    if (HandleRadioButtonClick(mzRadio, e.CanvasLocation, 
+                    if (HandleRadioButtonClick(mzRadio, e.CanvasLocation,
                         () => Cmp.ShowMz, v => Cmp.ShowMz = v))
                         return GH_ObjectResponse.Handled;
+                    // 単位ドロップダウンのクリック処理
+                    if (_forceUnitDropdownBounds.Contains(e.CanvasLocation))
+                    {
+                        ShowForceUnitMenu(e.CanvasLocation);
+                        return GH_ObjectResponse.Handled;
+                    }
+                    if (_lengthUnitDropdownBounds.Contains(e.CanvasLocation))
+                    {
+                        ShowLengthUnitMenu(e.CanvasLocation);
+                        return GH_ObjectResponse.Handled;
+                    }
                 }
             }
-
-            return base.RespondToMouseDown(sender, e);
+                return base.RespondToMouseDown(sender, e);
         }
 
         /// <summary>
@@ -301,7 +374,65 @@ namespace FEMurGH.Comoponents.Results
             }
             return false;
         }
+        private void ShowForceUnitMenu(PointF location)
+        {
+            var menu = new ToolStripDropDown();
 
+            // FEMur.Common.Units.ForceUnit を使用
+            foreach (ForceUnit unit in Enum.GetValues(typeof(ForceUnit)))
+            {
+                var item = new ToolStripMenuItem(unit.ToString());
+                item.Checked = (Cmp.SelectedForceUnit == unit);
+                item.Click += (s, e) =>
+                {
+                    Cmp.SelectedForceUnit = unit;
+                    Cmp.ExpireSolution(true);
+                };
+                menu.Items.Add(item);
+            }
+
+            GH_Canvas canvas = Grasshopper.Instances.ActiveCanvas;
+
+            PointF canvasPoint = new PointF(
+                _forceUnitDropdownBounds.Left,
+                _forceUnitDropdownBounds.Bottom
+            );
+
+            PointF controlPoint = canvas.Viewport.ProjectPoint(canvasPoint);
+            Point screenLocation = canvas.PointToScreen(Point.Round(controlPoint));
+
+            menu.Show(screenLocation);
+        }
+
+        private void ShowLengthUnitMenu(PointF location)
+        {
+            var menu = new ToolStripDropDown();
+
+            // FEMur.Common.Units.LengthUnit を使用
+            foreach (LengthUnit unit in Enum.GetValues(typeof(LengthUnit)))
+            {
+                var item = new ToolStripMenuItem(unit.ToString());
+                item.Checked = (Cmp.SelectedLengthUnit == unit);
+                item.Click += (s, e) =>
+                {
+                    Cmp.SelectedLengthUnit = unit;
+                    Cmp.ExpireSolution(true);
+                };
+                menu.Items.Add(item);
+            }
+
+            GH_Canvas canvas = Grasshopper.Instances.ActiveCanvas;
+
+            PointF canvasPoint = new PointF(
+                _lengthUnitDropdownBounds.Left,
+                _lengthUnitDropdownBounds.Bottom
+            );
+
+            PointF controlPoint = canvas.Viewport.ProjectPoint(canvasPoint);
+            Point screenLocation = canvas.PointToScreen(Point.Round(controlPoint));
+
+            menu.Show(screenLocation);
+        }
         #endregion
     }
 }

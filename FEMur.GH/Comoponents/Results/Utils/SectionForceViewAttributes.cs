@@ -5,6 +5,7 @@ using Grasshopper.GUI;
 using Grasshopper.GUI.Canvas;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Attributes;
+using FEMur.Common.Units; // 追加
 
 namespace FEMurGH.Comoponents.Results
 {
@@ -42,8 +43,7 @@ namespace FEMurGH.Comoponents.Results
         private const float UNIT_DROPDOWN_WIDTH = 60f;
         private const float UNIT_LABEL_WIDTH = 40f;
         private const float UNIT_SPACING = 2f;
-
-        private static readonly Color TAB_BACKGROUND_COLOR = Color.FromArgb(80, 80, 80);
+        
         private static readonly Color CONTROL_FILL_COLOR = Color.FromArgb(80, 80, 80);
         private static readonly Color TEXT_COLOR = Color.Black;
         private static readonly Color TAB_TEXT_COLOR = Color.White;
@@ -397,7 +397,8 @@ namespace FEMurGH.Comoponents.Results
         {
             var menu = new ToolStripDropDown();
             
-            foreach (SectionForceView.ForceUnit unit in Enum.GetValues(typeof(SectionForceView.ForceUnit)))
+            // FEMur.Common.Units.ForceUnit を使用
+            foreach (ForceUnit unit in Enum.GetValues(typeof(ForceUnit)))
             {
                 var item = new ToolStripMenuItem(unit.ToString());
                 item.Checked = (Cmp.SelectedForceUnit == unit);
@@ -426,7 +427,8 @@ namespace FEMurGH.Comoponents.Results
         {
             var menu = new ToolStripDropDown();
             
-            foreach (SectionForceView.LengthUnit unit in Enum.GetValues(typeof(SectionForceView.LengthUnit)))
+            // FEMur.Common.Units.LengthUnit を使用
+            foreach (LengthUnit unit in Enum.GetValues(typeof(LengthUnit)))
             {
                 var item = new ToolStripMenuItem(unit.ToString());
                 item.Checked = (Cmp.SelectedLengthUnit == unit);

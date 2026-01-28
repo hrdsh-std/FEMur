@@ -197,7 +197,7 @@ namespace FEMurGH.Comoponents.Results
         private static string FormatValue(double v)
         {
             // 小数第1位まで表示、指数表示なし
-            return v.ToString("F2");
+            return v.ToString("F1");
         }
 
         private static Point3d ToRhinoPoint(Point3 p)

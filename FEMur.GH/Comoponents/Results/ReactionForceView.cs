@@ -6,6 +6,7 @@ using Grasshopper.Kernel;
 using Rhino.Geometry;
 using FEMur.Models;
 using FEMur.Results;
+using FEMur.Common.Units; // 追加
 using FEMurGH.Extensions;
 
 namespace FEMurGH.Comoponents.Results
@@ -24,9 +25,14 @@ namespace FEMurGH.Comoponents.Results
         public bool ShowMx { get; set; } = false;
         public bool ShowMy { get; set; } = false;
         public bool ShowMz { get; set; } = false;
+        public bool ShowNumbers { get; set; } = true;
+
+        // 単位選択（FEMur.Common.Unitsの列挙型を使用）
+        public ForceUnit SelectedForceUnit { get; set; } = ForceUnit.N;
+        public LengthUnit SelectedLengthUnit { get; set; } = LengthUnit.mm;
 
         // 展開タブの状態
-        public bool IsReactionsTabExpanded { get; set; } = false;
+        public bool IsReactionForceTabExpanded { get; set; } = false;
 
         // 入力キャッシュ
         private Model _model;
@@ -382,9 +388,14 @@ namespace FEMurGH.Comoponents.Results
             // 矢印の線
             display.DrawArrow(new Line(arrow.Start, arrow.End), arrow.Color, 20, 5);
 
-            // ラベル（数値のみ）
-            string labelText = $"{arrow.Magnitude:F1}";
-            display.Draw2dText(labelText, arrow.Color, arrow.End, true, 12);
+            // ラベル（数値を単位変換して表示）
+            if (ShowNumbers)
+            {
+                double convertedValue = UnitConverter.ConvertForce(arrow.Magnitude, SelectedForceUnit);
+                string unitSymbol = UnitConverter.GetForceUnitSymbol(SelectedForceUnit);
+                string labelText = $"{convertedValue:F1}";
+                display.Draw2dText(labelText, arrow.Color, arrow.End, true, 12);
+            }
         }
 
         /// <summary>
@@ -491,10 +502,15 @@ namespace FEMurGH.Comoponents.Results
                     display.DrawLine(arrowTip, arrowTip + arrowRight, moment.Color, 3);
                 }
 
-                // ラベル（数値のみ）
-                string labelText = $"{moment.Magnitude:F1}";
-                Point3d labelPos = arcPoints[arcPoints.Count / 2]; // 円弧の中央にラベル
-                display.Draw2dText(labelText, moment.Color, labelPos, true, 12);
+                // ラベル（数値を単位変換して表示）
+                if (ShowNumbers)
+                {
+                    double convertedValue = UnitConverter.ConvertMoment(moment.Magnitude, SelectedForceUnit, SelectedLengthUnit);
+                    string unitSymbol = UnitConverter.GetMomentUnitSymbol(SelectedForceUnit, SelectedLengthUnit);
+                    string labelText = $"{convertedValue:F1}";
+                    Point3d labelPos = arcPoints[arcPoints.Count / 2]; // 円弧の中央にラベル
+                    display.Draw2dText(labelText, moment.Color, labelPos, true, 12);
+                }
             }
         }
 
@@ -543,7 +559,9 @@ namespace FEMurGH.Comoponents.Results
             writer.SetBoolean("ShowMx", ShowMx);
             writer.SetBoolean("ShowMy", ShowMy);
             writer.SetBoolean("ShowMz", ShowMz);
-            writer.SetBoolean("IsReactionsTabExpanded", IsReactionsTabExpanded);
+            writer.SetBoolean("IsReactionsTabExpanded", IsReactionForceTabExpanded);
+            writer.SetInt32("SelectedForceUnit", (int)SelectedForceUnit);
+            writer.SetInt32("SelectedLengthUnit", (int)SelectedLengthUnit);
             return base.Write(writer);
         }
 
@@ -562,7 +580,11 @@ namespace FEMurGH.Comoponents.Results
             if (reader.ItemExists("ShowMz"))
                 ShowMz = reader.GetBoolean("ShowMz");
             if (reader.ItemExists("IsReactionsTabExpanded"))
-                IsReactionsTabExpanded = reader.GetBoolean("IsReactionsTabExpanded");
+                IsReactionForceTabExpanded = reader.GetBoolean("IsReactionsTabExpanded");
+            if (reader.ItemExists("SelectedForceUnit"))
+                SelectedForceUnit = (ForceUnit)reader.GetInt32("SelectedForceUnit");
+            if (reader.ItemExists("SelectedLengthUnit"))
+                SelectedLengthUnit = (LengthUnit)reader.GetInt32("SelectedLengthUnit");
             return base.Read(reader);
         }
 
