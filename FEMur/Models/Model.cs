@@ -15,7 +15,7 @@ using FEMur.Results;
 
 namespace FEMur.Models
 {
-    public class Model:CommonObject,ICloneable,ISerializable, IEquatable<Model>
+    public class Model:CommonObject,ISerializable, IEquatable<Model>
     {
         public List<Node> Nodes { get; set; }
         public List<ElementBase> Elements { get; set; }
@@ -62,18 +62,24 @@ namespace FEMur.Models
 
         public Model(Model other)
         {
-            this.Nodes = other.Nodes;
-            this.Elements = other.Elements;
-            this.Supports = other.Supports;
-            this.Loads = other.Loads;
-            this.Result = other.Result;
-            this.IsSolved = other.IsSolved;
-            
+            // LINQ でディープコピー
+            this.Nodes = other.Nodes.Select(n => (Node)n.DeepCopy()).ToList();
+            this.Elements = other.Elements.Select(e => (ElementBase)e.DeepCopy()).ToList();
+            this.Supports = other.Supports.Select(s => (Support)s.DeepCopy()).ToList();
+            this.Loads = other.Loads.Select(l => (Load)l.DeepCopy()).ToList();
+
+            this.Result = null;
+            this.IsSolved = false;
+
             // モデルの検証（自動ノード生成を含む）
             ValidateAndRepairModel();
             
             // 要素座標系の設定
             ElementCoordinateSystemHelper.SetupElementCoordinateSystems(this);
+        }
+        public override object DeepCopy()
+        {
+            return new Model(this);
         }
 
         public Model(SerializationInfo info, StreamingContext context)

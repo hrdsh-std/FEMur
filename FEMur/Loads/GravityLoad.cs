@@ -13,6 +13,14 @@ namespace FEMur.Loads
         {
             throw new NotImplementedException("This class is not implemented yet. Please implement the GravityLoad class according to your requirements.");
         }
+        public GravityLoad(GravityLoad other) : base(other)
+        {
+            throw new NotImplementedException("This class is not implemented yet. Please implement the GravityLoad class according to your requirements.");
+        }
+        public override object DeepCopy()
+        {
+            return new GravityLoad(this);
+        }
         // Additional properties and methods for GravityLoad can be added here
     }
 }

@@ -44,17 +44,18 @@ namespace FEMurGH.Comoponents.Solver
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Run flag not set");
             }
 
+            var copyModel = (Model)model.DeepCopy();
             string info = "";
             var warnings = new List<string>();
 
             if (!run)
             {
                 info = "Solver not executed. Set Run = true to solve.";
-                if (model.IsSolved)
+                if (copyModel.IsSolved)
                 {
                     info += "\nModel has previously computed results.";
                 }
-                DA.SetData(0, model);
+                DA.SetData(0, copyModel);
                 DA.SetData(1, info);
                 DA.SetDataList(2, warnings);
                 return;
@@ -66,7 +67,7 @@ namespace FEMurGH.Comoponents.Solver
                 var solver = new FEMur.Solver.LinearStaticSolver();
 
                 // 解析実行（Modelが直接更新される)
-                solver.Solve(model);
+                solver.Solve(copyModel);
 
                 // 警告を取得
                 if (solver.Warnings.Count > 0)
@@ -80,40 +81,40 @@ namespace FEMurGH.Comoponents.Solver
 
                 // 情報メッセージ作成
                 info = $"Analysis completed successfully.\n" +
-                       $"Nodes: {model.Nodes.Count}\n" +
-                       $"Elements: {model.Elements.Count}\n" +
-                       $"Supports: {model.Supports.Count}\n" +
-                       $"Loads: {model.Loads.Count}\n" +
-                       $"Total DOF: {model.Nodes.Count * 6}\n" +
-                       $"IsSolved: {model.IsSolved}";
+                       $"Nodes: {copyModel.Nodes.Count}\n" +
+                       $"Elements: {copyModel.Elements.Count}\n" +
+                       $"Supports: {copyModel.Supports.Count}\n" +
+                       $"Loads: {copyModel.Loads.Count}\n" +
+                       $"Total DOF: {copyModel.Nodes.Count * 6}\n" +
+                       $"IsSolved: {copyModel.IsSolved}";
 
                 if (warnings.Count > 0)
                 {
                     info += $"\n\nWarnings: {warnings.Count} (see Warnings output for details)";
                 }
 
-                DA.SetData(0, model);
+                DA.SetData(0, copyModel);
                 DA.SetData(1, info);
                 DA.SetDataList(2, warnings);
             }
             catch (InvalidOperationException ex)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Solver error: {ex.Message}");
-                DA.SetData(0, model);
+                DA.SetData(0, copyModel);
                 DA.SetData(1, $"Error: {ex.Message}");
                 DA.SetDataList(2, warnings);
             }
             catch (ArgumentException ex)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Model error: {ex.Message}");
-                DA.SetData(0, model);
+                DA.SetData(0, copyModel);
                 DA.SetData(1, $"Error: {ex.Message}");
                 DA.SetDataList(2, warnings);
             }
             catch (Exception ex)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Unexpected error: {ex.Message}");
-                DA.SetData(0, model);
+                DA.SetData(0, copyModel);
                 DA.SetData(1, $"Error: {ex.Message}");
                 DA.SetDataList(2, warnings);
             }

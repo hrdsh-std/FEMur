@@ -63,7 +63,10 @@ namespace FEMur.Nodes
             RZ,
             N_DOF
         }
-
+        public override object DeepCopy()
+        {
+            return new Node(this);
+        }
 
         public override string ToString()
         {

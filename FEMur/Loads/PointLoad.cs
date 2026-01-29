@@ -59,7 +59,16 @@ namespace FEMur.Loads
             Force = force;
             Moment = moment;
         }
-
+        public PointLoad(PointLoad other)
+            : base(other)
+        {
+            Force = other.Force;
+            Moment = other.Moment;
+        }
+        public override object DeepCopy()
+        {
+            return new PointLoad(this);
+        }
         public override string ToString()
         {
             string location;

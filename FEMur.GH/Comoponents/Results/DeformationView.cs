@@ -115,9 +115,9 @@ namespace FEMurGH.Comoponents.Results
 
             if (!_model.IsSolved || _model.Result == null)
             {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Model has not been solved yet. Run LinearStaticSolver first.");
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Model has not been solved yet.");
                 ClearCaches();
-                DA.SetData(0, _model); // èoóÕÇí«â¡
+                DA.SetData(0, _model); 
                 return;
             }
 

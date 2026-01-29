@@ -204,7 +204,7 @@ namespace FEMurGH.Comoponents.Results
 
             using (SolidBrush textBrush = new SolidBrush(TAB_TEXT_COLOR))
             {
-                graphics.DrawString("Display", GH_FontServer.StandardBold, textBrush, displayArea, format);
+                graphics.DrawString("Deformation", GH_FontServer.StandardBold, textBrush, displayArea, format);
             }
         }
 
@@ -217,12 +217,8 @@ namespace FEMurGH.Comoponents.Results
             float leftMargin = Bounds.Left + MENU_LEFT_MARGIN;
 
             // チェックボックスグループのカプセル
-            GH_Palette palette = GH_Palette.White;
-            if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Error)
-                palette = GH_Palette.Error;
-            else if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Warning)
-                palette = GH_Palette.Warning;
-            
+            GH_Palette palette = GH_CapsuleRenderEngine.GetImpliedPalette(Cmp);
+
             GH_Capsule checkboxCapsule = GH_Capsule.CreateCapsule(checkboxGroupArea, palette, 2, 0);
             checkboxCapsule.Render(graphics, Selected,Cmp.Locked,Cmp.Hidden);
             checkboxCapsule.Dispose();

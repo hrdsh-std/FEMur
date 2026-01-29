@@ -22,6 +22,14 @@ namespace FEMur.Elements
             CrossSection = crossSection;
             Material = material;
         }
+        public ShellElement(ShellElement other)
+        {
+            throw new NotImplementedException();
+        }
+        public override object DeepCopy()
+        {
+            return new ShellElement(this);
+        }
         internal override Matrix<double> CalcLocalStiffness(List<Node> nodes)
         {
             throw new NotImplementedException();

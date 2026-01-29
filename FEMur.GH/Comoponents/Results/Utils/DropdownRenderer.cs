@@ -35,12 +35,19 @@ namespace FEMurGH.Comoponents.Results
             bool selected,
             float cornerRadius = DEFAULT_CORNER_RADIUS)
         {
+            bool isLocked = false;
+            bool isHidden = false;
+            if (component is IGH_Component ghComponent)
+            {
+                isHidden = ghComponent.Hidden;
+                isLocked = ghComponent.Locked;
+            }
             // コンポーネントの状態に応じたパレットを取得
             GH_Palette palette = GH_CapsuleRenderEngine.GetImpliedPalette(component);
 
             // ドロップダウン個別のカプセル
             GH_Capsule capsule = GH_Capsule.CreateCapsule(bounds, palette, (int)cornerRadius, 0);
-            capsule.Render(graphics, selected, component.Locked,false);
+            capsule.Render(graphics, selected, isLocked,isHidden);
             capsule.Dispose();
 
             // 内側の領域を計算

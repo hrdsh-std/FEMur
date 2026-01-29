@@ -140,9 +140,9 @@ namespace FEMurGH.Comoponents.Results
                 float unitStartY = unitContentArea.Top + UNIT_SPACING;
                 float centerX = bounds.Left + bounds.Width / 2;
 
-                float dropdownWidth = (bounds.Width - (COMPONENT_MARGIN_HORIZONTAL * 2)) / 2 - UNIT_SPACING;
+                float dropdownWidth = (bounds.Width - (COMPONENT_MARGIN_HORIZONTAL * 2)) / 2 - UNIT_SPACING / 2;
                 float totalWidth = dropdownWidth * 2 + UNIT_SPACING;
-                float leftX = centerX - totalWidth / 2;
+                float leftX = bounds.Left + COMPONENT_MARGIN_HORIZONTAL;
 
                 _forceUnitDropdownBounds = new RectangleF(
                     leftX,
@@ -216,13 +216,9 @@ namespace FEMurGH.Comoponents.Results
         private void RenderMenuContent(Graphics graphics)
         {
             // ÉÅÉjÉÖÅ[îwåiÇÃÉJÉvÉZÉãÇï`âÊ
-            GH_Palette palette = GH_Palette.White;
-            if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Error)
-                palette = GH_Palette.Error;
-            else if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Warning)
-                palette = GH_Palette.Warning;
+            GH_Palette palette = GH_CapsuleRenderEngine.GetImpliedPalette(Cmp);
             GH_Capsule menuCapsule = GH_Capsule.CreateCapsule(menuContentArea, palette, 2, 0);
-            menuCapsule.Render(graphics, Selected, Cmp.Locked, false);
+            menuCapsule.Render(graphics, Selected, Cmp.Locked, Cmp.Hidden);
             menuCapsule.Dispose();
 
             var font = GH_FontServer.Small;

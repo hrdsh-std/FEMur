@@ -72,6 +72,18 @@ namespace FEMur.Loads
             MLocal = (Vector3)info.GetValue("MLocal", typeof(Vector3));
             Local = info.GetBoolean("Local");
         }
+        public ElementLoad(ElementLoad other):base(other)
+        {
+            ElementId = other.ElementId;
+            QLocal = other.QLocal;
+            MLocal = other.MLocal;
+            Local = other.Local;
+        }
+
+        public override object DeepCopy()
+        {
+            return new ElementLoad(this);
+        }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {

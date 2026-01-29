@@ -81,6 +81,41 @@ namespace FEMur.Elements
             : base(info, context)
         {
         }
+        /// <summary>
+        /// コピーコンストラクタ（シャローコピー）
+        /// DeepCopyが必要な場合は派生クラスでDeepCopy()メソッドを使用すること
+        /// </summary>
+        public ElementBase(ElementBase other)
+        {
+            // 値型フィールド
+            this.Id = other.Id;
+            this.Length = other.Length;
+            
+            // 参照型フィールド（シャローコピー）
+            // Material と CrossSection は不変オブジェクトと仮定して参照をコピー
+            this.Material = other.Material;
+            this.CrossSection = other.CrossSection;
+            
+            // リストのシャローコピー（新しいリストだが中身は同じ参照）
+            this.NodeIds = other.NodeIds != null ? new List<int>(other.NodeIds) : null;
+            this.Points = other.Points != null ? new List<Point3>(other.Points) : null;
+            
+            // 配列のコピー
+            this.LocalAxis = other.LocalAxis != null ? (double[])other.LocalAxis.Clone() : null;
+            this.LocalAxisX = other.LocalAxisX != null ? (double[])other.LocalAxisX.Clone() : null;
+            this.LocalAxisY = other.LocalAxisY != null ? (double[])other.LocalAxisY.Clone() : null;
+            this.LocalAxisZ = other.LocalAxisZ != null ? (double[])other.LocalAxisZ.Clone() : null;
+            
+            // 行列のシャローコピー（MathNet.Numerics.LinearAlgebra.Matrix<double>）
+            // Note: Matrix<T>は参照型だが、通常は再計算されるのでシャローコピーで十分
+            this.TransformationMatrix = other.TransformationMatrix;
+            this.LocalStiffness = other.LocalStiffness;
+            this.GlobalStiffness = other.GlobalStiffness;
+            this.LocalMass = other.LocalMass;
+            this.GlobalMass = other.GlobalMass;
+            this.LocalDamping = other.LocalDamping;
+            this.GlobalDamping = other.GlobalDamping;
+        }
 
         internal abstract Matrix<double> CalcLocalStiffness(List<Node> nodes);
 

@@ -59,6 +59,16 @@ namespace FEMur.Loads
             Displacement = displacement;
             Rotation = rotation;
         }
+        public PointDisplacement (PointDisplacement other)
+            : base(other)
+        {
+            Displacement = other.Displacement;
+            Rotation = other.Rotation;
+        }
+        public override object DeepCopy()
+        {
+            return new PointDisplacement(this);
+        }
 
         public override string ToString()
         {

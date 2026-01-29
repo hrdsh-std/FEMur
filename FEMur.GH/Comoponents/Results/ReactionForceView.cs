@@ -36,12 +36,7 @@ namespace FEMurGH.Comoponents.Results
         // 展開タブの状態
         public bool IsReactionForceTabExpanded { get; set; } = false;
 
-        // 入力キャッシュ
-        private Model _model;
-        private double _scale = 1.0;
-        private double _autoScale = 1.0;
-
-        // 描画キャッシュ
+        // 描画用キャッシュのみ（SolveInstance実行後に保持）
         private List<ArrowGeometry> _forceArrows = new List<ArrowGeometry>();
         private List<MomentArrowGeometry> _momentArrows = new List<MomentArrowGeometry>();
 
@@ -66,7 +61,7 @@ namespace FEMurGH.Comoponents.Results
 
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("AnalyzedModel", "AM", "FEMur Model with computed results", GH_ParamAccess.item);
+            pManager.AddGenericParameter("AnalyzedModel", "AM", "FEMur Model with computed results (from LinearStaticSolver)", GH_ParamAccess.item);
             pManager.AddNumberParameter("Scale", "S", "Display scale factor (multiplied with auto-scale)", GH_ParamAccess.item, 1.0);
         }
 
@@ -81,52 +76,54 @@ namespace FEMurGH.Comoponents.Results
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            _model = null;
-            _scale = 1.0;
-            _autoScale = 1.0;
+            // ローカル変数として扱う（フィールドに保存しない）
+            Model model = null;
+            double scale = 1.0;
 
-            if (!DA.GetData(0, ref _model) || _model == null)
+            if (!DA.GetData(0, ref model) || model == null)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "AnalyzedModel is required");
                 ClearCaches();
                 return;
             }
 
-            if (!DA.GetData(1, ref _scale))
+            if (!DA.GetData(1, ref scale))
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Scale not set, using default 1.0");
-                _scale = 1.0;
+                scale = 1.0;
             }
 
-            if (!_model.IsSolved || _model.Result == null)
+            // 未解析モデルのチェック（毎回入力から確認）
+            if (!model.IsSolved || model.Result == null)
             {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Model has not been solved yet. Run LinearStaticSolver first.");
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, 
+                    "Model has not been solved yet.");
                 ClearCaches();
-                DA.SetData(0, _model);
+                DA.SetData(0, model);
                 return;
             }
 
-            if (_model.Result.ReactionForces == null || _model.Result.ReactionForces.Count == 0)
+            if (model.Result.ReactionForces == null || model.Result.ReactionForces.Count == 0)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "No reaction forces found in the result.");
                 ClearCaches();
-                DA.SetData(0, _model);
+                DA.SetData(0, model);
                 return;
             }
 
             // 力とモーメントで別々に自動スケール計算
-            double forceAutoScale = ComputeAutoScale(_model);
-            double momentAutoScale = ComputeMomentAutoScale(_model);
+            double forceAutoScale = ComputeAutoScale(model);
+            double momentAutoScale = ComputeMomentAutoScale(model);
 
             // 最終スケール = 自動スケール × 入力スケール
-            double finalForceScale = forceAutoScale * _scale;
-            double finalMomentScale = momentAutoScale * _scale;
+            double finalForceScale = forceAutoScale * scale;
+            double finalMomentScale = momentAutoScale * scale;
 
             // 反力矢印を生成（力とモーメントで別々のスケール）
-            GenerateReactionArrows(_model, finalForceScale, finalMomentScale);
+            GenerateReactionArrows(model, finalForceScale, finalMomentScale);
 
             // 出力（入力をそのまま渡す）
-            DA.SetData(0, _model);
+            DA.SetData(0, model);
         }
 
         #endregion
@@ -211,12 +208,12 @@ namespace FEMurGH.Comoponents.Results
             Vector3d direction = axis * (magnitude > 0 ? 1 : -1);
             direction.Unitize();
 
-            Point3d endPoint = origin + direction * Math.Abs(length);
+            Point3d startPoint = origin - direction * Math.Abs(length);
 
             return new ArrowGeometry
             {
-                Start = origin,
-                End = endPoint,
+                Start = startPoint,
+                End = origin,
                 Direction = direction,
                 Magnitude = magnitude,
                 Color = color,
@@ -323,7 +320,9 @@ namespace FEMurGH.Comoponents.Results
 
         public override void DrawViewportWires(IGH_PreviewArgs args)
         {
-            if (_model == null || _model.Result == null)
+            // キャッシュされた矢印ジオメトリを描画
+            // （modelの状態は関係なく、SolveInstanceで生成されたジオメトリのみ描画）
+            if (_forceArrows.Count == 0 && _momentArrows.Count == 0)
                 return;
 
             var display = args.Display;

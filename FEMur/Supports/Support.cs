@@ -80,6 +80,28 @@ namespace FEMur.Supports
             NodeId = node.Id;
             Conditions = conditions;
         }
+        /// <summary>
+        /// コピーコンストラクタ
+        /// </summary>
+        public Support(Support other)
+        {
+            // 値型フィールド
+            this.NodeId = other.NodeId;
+            
+            // Nullable値型（Point3?）
+            this.Position = other.Position;  // Point3はstructなので値がコピーされる
+            
+            // 配列のディープコピー
+            this.Conditions = other.Conditions != null ? (bool[])other.Conditions.Clone() : new bool[6];
+            this.Displacement = other.Displacement != null ? (double[])other.Displacement.Clone() : new double[6];
+            this.Stiffness = other.Stiffness != null ? (double[])other.Stiffness.Clone() : new double[6];
+            this.dofs = other.dofs != null ? (Node.DOF[])other.dofs.Clone() : new Node.DOF[6];
+        }
+
+        public override object DeepCopy()
+        {
+            return new Support(this);
+        }
 
         public override string ToString()
         {

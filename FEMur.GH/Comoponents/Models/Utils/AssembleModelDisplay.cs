@@ -8,6 +8,8 @@ using FEMur.Nodes;
 using FEMur.Elements;
 using FEMur.Supports;
 using FEMur.Loads;
+using FEMur.Common.Units;
+using FEMurGH.Common.Drawing;
 
 namespace FEMurGH.Comoponents.Models
 {
@@ -19,7 +21,7 @@ namespace FEMurGH.Comoponents.Models
         #region Generate Display Geometry
 
         /// <summary>
-        /// 要素の線材モデルを生成
+        /// 要素の線形モデルを生成
         /// </summary>
         private void GenerateElementLines(List<ElementBase> elements, List<Node> nodes)
         {
@@ -114,7 +116,7 @@ namespace FEMurGH.Comoponents.Models
             double dy = maxY - minY;
             double dz = maxZ - minZ;
 
-            // バウンディングボックスの対角線長さ
+            // バウンディングボックスの対角線長
             double diagonalLength = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
             return diagonalLength > 0 ? diagonalLength : 1000.0;
@@ -182,19 +184,19 @@ namespace FEMurGH.Comoponents.Models
 
         private void DrawLoads(Rhino.Display.DisplayPipeline display)
         {
-            if (ShowLoad && _cachedModel.Loads != null)
-            {
-                // モデルの特性寸法を計算（荷重矢印のスケール用）
-                double modelSize = CalculateModelCharacteristicLength();
-                double loadArrowScale = modelSize * 0.15; // モデルサイズの15%
+            if (!ShowLoad || _cachedModel.Loads == null)
+                return;
 
-                foreach (var load in _cachedModel.Loads)
-                {
-                    if (load is PointLoad pointLoad)
-                        DrawPointLoad(display, pointLoad, loadArrowScale);
-                    else if (load is ElementLoad elementLoad)
-                        DrawElementLoad(display, elementLoad, loadArrowScale);
-                }
+            // モデルの特性寸法を計算（荷重矢印のスケール用）
+            double modelSize = CalculateModelCharacteristicLength();
+            double loadArrowScale = modelSize * 0.15; // モデルサイズの15%
+
+            foreach (var load in _cachedModel.Loads)
+            {
+                if (load is PointLoad pointLoad)
+                    DrawPointLoad(display, pointLoad, loadArrowScale);
+                else if (load is ElementLoad elementLoad)
+                    DrawElementLoad(display, elementLoad, loadArrowScale);
             }
         }
 
@@ -260,7 +262,7 @@ namespace FEMurGH.Comoponents.Models
         #region Draw Load Methods
 
         /// <summary>
-        /// 節点荷重を描画（矢印と荷重値）
+        /// 節点荷重を描画（ArrowRendererを使用）
         /// </summary>
         private void DrawPointLoad(Rhino.Display.DisplayPipeline display, PointLoad load, double arrowScale)
         {
@@ -274,55 +276,62 @@ namespace FEMurGH.Comoponents.Models
             double fMag = Math.Sqrt(force.X * force.X + force.Y * force.Y + force.Z * force.Z);
             if (fMag > 1e-6)
             {
-                // 力の方向ベクトル（正規化）
                 var forceDir = new Vector3d(force.X, force.Y, force.Z);
                 forceDir.Unitize();
-
-                // 矢印の長さ（モデルサイズに基づく）
                 var arrowVec = forceDir * arrowScale;
 
-                // 矢印の始点（節点から荷重方向の反対側）
-                var arrowStart = nodePt - arrowVec;
-                var arrowEnd = nodePt; // 矢印の先端は節点位置
+                // ArrowGeometryを作成
+                var arrow = new ArrowGeometry
+                {
+                    Start = nodePt - arrowVec,  // 矢印の始点
+                    End = nodePt,                // 矢印の先端（節点）
+                    Direction = forceDir,
+                    Magnitude = fMag,
+                    Color = Color.Red,
+                    Label = "F"
+                };
 
-                // 矢印を描画
-                var arrowLine = new Line(arrowStart, arrowEnd);
-                display.DrawArrow(arrowLine, Color.Red, 20, 15);
+                // 単位変換
+                double convertedForce = UnitConverter.ConvertForce(fMag, SelectedForceUnit);
+                string valueText = $"{convertedForce:F1}";
 
-                // 荷重値をラベル表示（矢印の始点側）
-                var labelOffset = -arrowVec * 0.2;
-                var labelPt = arrowStart + labelOffset;
-                display.Draw2dText($"{fMag:F1}", Color.Red, labelPt, true, 12);
+                // ArrowRendererで描画
+                ArrowRenderer.DrawForceArrow(display, arrow, true, valueText, 12);
             }
 
             // モーメントの描画
             double mMag = Math.Sqrt(moment.X * moment.X + moment.Y * moment.Y + moment.Z * moment.Z);
             if (mMag > 1e-6)
             {
-                // モーメントの軸方向
                 var momentAxis = new Vector3d(moment.X, moment.Y, moment.Z);
                 momentAxis.Unitize();
 
-                // 円を描画（モーメントを表現）
-                var plane = new Plane(nodePt, momentAxis);
                 double circleRadius = arrowScale * 0.3;
-                var circle = new Circle(plane, circleRadius);
-                display.DrawCircle(circle, Color.Orange, 3);
+                circleRadius = Math.Max(20.0, Math.Min(500.0, circleRadius));
 
-                // 円周上に矢印を追加（回転方向を示す）
-                var circlePt = circle.PointAt(0);
-                var tangent = circle.TangentAt(0);
-                var arrowLine = new Line(circlePt, circlePt + tangent * circleRadius * 0.3);
-                display.DrawArrow(arrowLine, Color.Orange, 10, 8);
+                // MomentArrowGeometryを作成
+                var momentArrow = new MomentArrowGeometry
+                {
+                    Center = nodePt,
+                    Axis = momentAxis,
+                    Radius = circleRadius,
+                    Magnitude = mMag,
+                    Clockwise = true,  // 荷重は常に正の方向
+                    Color = Color.Orange,
+                    Label = "M"
+                };
 
-                // モーメント値をラベル表示
-                var labelPt = nodePt + momentAxis * (circleRadius * 1.5);
-                display.Draw2dText($"{mMag:F1}", Color.Orange, labelPt, true, 12);
+                // 単位変換
+                double convertedMoment = UnitConverter.ConvertMoment(mMag, SelectedForceUnit, SelectedLengthUnit);
+                string valueText = $"{convertedMoment:F1}";
+
+                // ArrowRendererで描画
+                ArrowRenderer.DrawMomentArrow(display, momentArrow, true, valueText, 12);
             }
         }
 
         /// <summary>
-        /// 要素荷重を描画（分布荷重）
+        /// 要素荷重を描画（ArrowRendererを使用）
         /// </summary>
         private void DrawElementLoad(Rhino.Display.DisplayPipeline display, ElementLoad load, double arrowScale)
         {
@@ -340,29 +349,34 @@ namespace FEMurGH.Comoponents.Models
             double qMag = Math.Sqrt(q.X * q.X + q.Y * q.Y + q.Z * q.Z);
             if (qMag > 1e-6)
             {
-                // 分布荷重の方向（要素のローカル座標系を考慮する必要がある場合は変換）
                 var qDir = new Vector3d(q.X, q.Y, q.Z);
                 qDir.Unitize();
-
-                // 矢印のスケール（要素荷重は節点荷重より小さめに）
                 var arrowVec = qDir * (arrowScale * 0.6);
 
-                // 要素の中点と両端で矢印を描画
+                // 要素の両端と中央で矢印を生成
                 var points = new[] { p0, (p0 + p1) * 0.5, p1 };
+
+                // 単位変換（1回だけ）
+                double convertedLoad = UnitConverter.ConvertForce(qMag, SelectedForceUnit);
+                string valueText = $"{convertedLoad:F1}";
 
                 foreach (var pt in points)
                 {
-                    var arrowStart = pt - arrowVec;
-                    var arrowEnd = pt;
-                    var arrowLine = new Line(arrowStart, arrowEnd);
-                    display.DrawArrow(arrowLine, Color.Magenta, 15, 12);
-                }
+                    // ArrowGeometryを作成
+                    var arrow = new ArrowGeometry
+                    {
+                        Start = pt - arrowVec,
+                        End = pt,
+                        Direction = qDir,
+                        Magnitude = qMag,
+                        Color = Color.Magenta,
+                        Label = "q"
+                    };
 
-                // 荷重値をラベル表示（中点のみ）
-                var center = (p0 + p1) * 0.5;
-                var labelOffset = -arrowVec * 0.2;
-                var labelPt = center + labelOffset;
-                display.Draw2dText($"{qMag:F1}", Color.Magenta, labelPt, true, 12);
+                    // ArrowRendererで描画（中央のみ数値表示)
+                    bool showNumber = (pt == points[1]); // 中央のみ
+                    ArrowRenderer.DrawForceArrow(display, arrow, showNumber, valueText, 12);
+                }
             }
         }
 
@@ -466,7 +480,7 @@ namespace FEMurGH.Comoponents.Models
                     }
                 }
 
-                // 荷重矢印の領域も考慮
+                // 荷重矢印の領域も含める
                 if (ShowLoad && _cachedModel != null && _cachedModel.Loads != null)
                 {
                     double modelSize = CalculateModelCharacteristicLength();

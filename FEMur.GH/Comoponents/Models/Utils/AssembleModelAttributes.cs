@@ -1,31 +1,33 @@
-using System;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Windows.Forms;
+using FEMur.Common.Units;
+using FEMurGH.Comoponents.Results;
 using Grasshopper.GUI;
 using Grasshopper.GUI.Canvas;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Attributes;
+using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Windows.Forms;
 
 namespace FEMurGH.Comoponents.Models
 {
     /// <summary>
     /// AssembleModel コンポーネントのカスタムUI属性
-    /// 折り畳み可能なタブメニューでチェックボックスを表示
+    /// 展開可能なタブメニューでチェックボックスを表示
     /// </summary>
     public class AssembleModelAttributes : GH_ComponentAttributes
     {
         #region UI Layout Constants
 
         private const float COMPONENT_MARGIN_HORIZONTAL = 2f;
-        private const float COMPONENT_MARGIN_VERTICAL = 4f;
+        private const float COMPONENT_MARGIN_VERTICAL = 2f;
 
         private const float TAB_HEIGHT = 14f;
         private const float TAB_MARGIN_TOP = 4f;
         private const float TAB_MARGIN_BOTTOM = 2f;
 
         private const float MENU_LEFT_MARGIN = 8f;
-        private const float MENU_TOP_PADDING = 5f;
+        private const float MENU_TOP_PADDING = 4f;
         private const float MENU_BOTTOM_PADDING = 3f;
 
         private const float CONTROL_SIZE = 10f;
@@ -33,15 +35,22 @@ namespace FEMurGH.Comoponents.Models
         private const float CONTROL_FILL_MARGIN = 2f;
 
         private const float LINE_HEIGHT_NORMAL = 15f;
+        private const float SECTION_SPACING = 8f;
 
         // チェックボックスの数と各行の高さから動的に計算
         private const int CHECKBOX_COUNT = 6; // NodeID, ElementID, Load, Support, LocalAxis, CrossSection
-        private const float MENU_CONTENT_HEIGHT = (CHECKBOX_COUNT * LINE_HEIGHT_NORMAL) + MENU_TOP_PADDING + MENU_BOTTOM_PADDING;
+        private float MENU_CONTENT_HEIGHT => (CHECKBOX_COUNT * LINE_HEIGHT_NORMAL) + MENU_TOP_PADDING ;
+
+        // 単位選択エリアの定数
+        private const float UNIT_DROPDOWN_HEIGHT = 16f;
+        private const float UNIT_SPACING = 2f;
+        private const float UNIT_AREA_HEIGHT = UNIT_DROPDOWN_HEIGHT + UNIT_SPACING;
 
         private static readonly Color TAB_BACKGROUND_COLOR = Color.FromArgb(80, 80, 80);
         private static readonly Color CONTROL_FILL_COLOR = Color.FromArgb(80, 80, 80);
         private static readonly Color TEXT_COLOR = Color.Black;
         private static readonly Color TAB_TEXT_COLOR = Color.White;
+        private static readonly Color GROUP_BACKGROUND_COLOR = Color.FromArgb(240, 240, 240);
 
         #endregion
 
@@ -50,12 +59,19 @@ namespace FEMurGH.Comoponents.Models
         private AssembleModel Cmp => base.Owner as AssembleModel;
 
         private RectangleF displayArea;
+        
+        // チェックボックスグループ
+        private RectangleF checkboxGroupArea;
         private RectangleF nodeIdCheckBox;
         private RectangleF elementIdCheckBox;
         private RectangleF loadCheckBox;
         private RectangleF supportCheckBox;
         private RectangleF localAxisCheckBox;
         private RectangleF crossSectionCheckBox;
+
+        // 単位選択用のフィールド
+        private RectangleF _forceUnitDropdownBounds;
+        private RectangleF _lengthUnitDropdownBounds;
 
         #endregion
 
@@ -73,6 +89,7 @@ namespace FEMurGH.Comoponents.Models
             if (Cmp.IsDisplayTabExpanded)
             {
                 extraHeight += MENU_CONTENT_HEIGHT;
+                extraHeight += UNIT_AREA_HEIGHT;
             }
 
             bounds.Height += extraHeight;
@@ -92,6 +109,9 @@ namespace FEMurGH.Comoponents.Models
                 float leftMargin = bounds.Left + MENU_LEFT_MARGIN;
                 float rightPosition = bounds.Right - CONTROL_RIGHT_MARGIN;
 
+                // チェックボックスグループ
+                float checkboxGroupTop = currentY;
+
                 nodeIdCheckBox = CreateControlRect(rightPosition, currentY);
                 currentY += LINE_HEIGHT_NORMAL;
 
@@ -108,6 +128,41 @@ namespace FEMurGH.Comoponents.Models
                 currentY += LINE_HEIGHT_NORMAL;
 
                 crossSectionCheckBox = CreateControlRect(rightPosition, currentY);
+                currentY += LINE_HEIGHT_NORMAL;
+
+                checkboxGroupArea = new RectangleF(
+                    bounds.Left + COMPONENT_MARGIN_HORIZONTAL,
+                    checkboxGroupTop - 2,
+                    bounds.Width - (COMPONENT_MARGIN_HORIZONTAL * 2),
+                    (CHECKBOX_COUNT * LINE_HEIGHT_NORMAL) + 2
+                );
+
+                // 単位選択エリアのレイアウト
+                float unitStartY = checkboxGroupArea.Bottom + UNIT_SPACING;
+                float centerX = bounds.Left + bounds.Width / 2;
+
+                float dropdownWidth = (bounds.Width - (COMPONENT_MARGIN_HORIZONTAL * 2)) / 2 - UNIT_SPACING / 2;
+                float totalWidth = dropdownWidth * 2 + UNIT_SPACING;
+                float leftX = bounds.Left + COMPONENT_MARGIN_HORIZONTAL;
+                
+                _forceUnitDropdownBounds = new RectangleF(
+                    leftX,
+                    unitStartY,
+                    dropdownWidth,
+                    UNIT_DROPDOWN_HEIGHT
+                );
+                
+                _lengthUnitDropdownBounds = new RectangleF(
+                    leftX + dropdownWidth + UNIT_SPACING,
+                    unitStartY,
+                    dropdownWidth,
+                    UNIT_DROPDOWN_HEIGHT
+                );
+            }
+            else
+            {
+                _forceUnitDropdownBounds = RectangleF.Empty;
+                _lengthUnitDropdownBounds = RectangleF.Empty;
             }
         }
 
@@ -131,6 +186,7 @@ namespace FEMurGH.Comoponents.Models
                 if (Cmp.IsDisplayTabExpanded)
                 {
                     RenderMenuContent(graphics);
+                    RenderUnitSelection(graphics);
                 }
             }
         }
@@ -141,13 +197,9 @@ namespace FEMurGH.Comoponents.Models
         private void RenderTab(Graphics graphics)
         {
             GH_Palette palette = GH_Palette.Black;
-            if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Error)
-                palette = GH_Palette.Error;
-            else if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Warning)
-                palette = GH_Palette.Warning;
 
             // タブ全体のカプセルを描画
-            GH_Capsule tabCapsule = GH_Capsule.CreateCapsule(displayArea, palette,2,4);
+            GH_Capsule tabCapsule = GH_Capsule.CreateCapsule(displayArea, palette, 2, 4);
             tabCapsule.Render(graphics, Selected, Cmp.Locked, false);
             tabCapsule.Dispose();
 
@@ -172,6 +224,21 @@ namespace FEMurGH.Comoponents.Models
             var font = GH_FontServer.Small;
             float leftMargin = Bounds.Left + MENU_LEFT_MARGIN;
 
+            // チェックボックスグループのカプセル
+
+            GH_Palette palette = GH_CapsuleRenderEngine.GetImpliedPalette(Cmp);
+
+            GH_Capsule checkboxCapsule = GH_Capsule.CreateCapsule(checkboxGroupArea, palette, 2, 0);
+            
+            bool isHidden = false;
+            if (Cmp is IGH_Component ghComponent)
+            {
+                isHidden = ghComponent.Hidden;
+            }
+            
+            checkboxCapsule.Render(graphics, Selected, Cmp.Locked, isHidden);
+            checkboxCapsule.Dispose();
+
             using (SolidBrush textBrush = new SolidBrush(TEXT_COLOR))
             {
                 graphics.DrawString("NodeID", font, textBrush, leftMargin, nodeIdCheckBox.Top);
@@ -192,6 +259,15 @@ namespace FEMurGH.Comoponents.Models
                 graphics.DrawString("CrossSection", font, textBrush, leftMargin, crossSectionCheckBox.Top);
                 DrawCheckBox(graphics, crossSectionCheckBox, Cmp.ShowCrossSection);
             }
+        }
+
+        private void RenderUnitSelection(Graphics graphics)
+        {
+            // DropdownRendererヘルパークラスを使用
+            DropdownRenderer.DrawDropdown(graphics, _forceUnitDropdownBounds, 
+                Cmp.SelectedForceUnit.ToString(), Cmp, Selected);
+            DropdownRenderer.DrawDropdown(graphics, _lengthUnitDropdownBounds, 
+                Cmp.SelectedLengthUnit.ToString(), Cmp, Selected);
         }
 
         /// <summary>
@@ -225,11 +301,29 @@ namespace FEMurGH.Comoponents.Models
         {
             if (e.Button == System.Windows.Forms.MouseButtons.Left)
             {
+                if (_forceUnitDropdownBounds.Contains(e.CanvasLocation))
+                {
+                    ShowForceUnitMenu(e.CanvasLocation);
+                    return GH_ObjectResponse.Handled;
+                }
+                
+                if (_lengthUnitDropdownBounds.Contains(e.CanvasLocation))
+                {
+                    ShowLengthUnitMenu(e.CanvasLocation);
+                    return GH_ObjectResponse.Handled;
+                }
+
                 // タブクリックで展開/折りたたみ
                 if (displayArea.Contains(e.CanvasLocation))
                 {
                     Cmp.IsDisplayTabExpanded = !Cmp.IsDisplayTabExpanded;
-                    Cmp.ExpireSolution(true);
+                    
+                    // レイアウトを再計算
+                    Layout();
+                    
+                    // キャンバスを再描画
+                    sender.Refresh();
+                    
                     return GH_ObjectResponse.Handled;
                 }
 
@@ -260,18 +354,102 @@ namespace FEMurGH.Comoponents.Models
         }
 
         /// <summary>
-        /// チェックボックスのクリック処理
+        /// チェックボックスのクリック処理（キャッシュ更新とビューポート再描画）
         /// </summary>
         private bool HandleCheckBoxClick(RectangleF rect, PointF location, Func<bool> getter, Action<bool> setter)
         {
             if (rect.Contains(location))
             {
-                var current = getter();
-                setter(!current);
-                Cmp.ExpireSolution(true);
+                setter(!getter());
+                
+                // モデル再構築ではなく、キャッシュ更新のみ
+                if (Cmp._cachedModel != null)
+                {
+                    Cmp.UpdateCaches(Cmp._cachedModel);
+                }
+                
+                // Rhinoビューポートのプレビューを期限切れにして再描画を強制
+                Cmp.ExpirePreview(true);
+                
+                // Rhinoのすべてのビューポートを即座に再描画
+                Rhino.RhinoDoc.ActiveDoc?.Views.Redraw();
+                
+                // Grasshopperキャンバスも再描画
+                Grasshopper.Instances.ActiveCanvas?.Refresh();
+                
                 return true;
             }
             return false;
+        }
+
+        private void ShowForceUnitMenu(PointF location)
+        {
+            var menu = new ToolStripDropDown();
+            
+            foreach (ForceUnit unit in Enum.GetValues(typeof(ForceUnit)))
+            {
+                var item = new ToolStripMenuItem(unit.ToString());
+                item.Checked = (Cmp.SelectedForceUnit == unit);
+                item.Click += (s, e) =>
+                {
+                    Cmp.SelectedForceUnit = unit;
+                    
+                    // Rhinoビューポートを再描画（単位表示が変わるため）
+                    Cmp.ExpirePreview(true);
+                    Rhino.RhinoDoc.ActiveDoc?.Views.Redraw();
+                    
+                    // Grasshopperキャンバスも再描画
+                    Grasshopper.Instances.ActiveCanvas?.Refresh();
+                };
+                menu.Items.Add(item);
+            }
+            
+            GH_Canvas canvas = Grasshopper.Instances.ActiveCanvas;
+            
+            PointF canvasPoint = new PointF(
+                _forceUnitDropdownBounds.Left,
+                _forceUnitDropdownBounds.Bottom
+            );
+            
+            PointF controlPoint = canvas.Viewport.ProjectPoint(canvasPoint);
+            Point screenLocation = canvas.PointToScreen(Point.Round(controlPoint));
+            
+            menu.Show(screenLocation);
+        }
+
+        private void ShowLengthUnitMenu(PointF location)
+        {
+            var menu = new ToolStripDropDown();
+            
+            foreach (LengthUnit unit in Enum.GetValues(typeof(LengthUnit)))
+            {
+                var item = new ToolStripMenuItem(unit.ToString());
+                item.Checked = (Cmp.SelectedLengthUnit == unit);
+                item.Click += (s, e) =>
+                {
+                    Cmp.SelectedLengthUnit = unit;
+                    
+                    // Rhinoビューポートを再描画
+                    Cmp.ExpirePreview(true);
+                    Rhino.RhinoDoc.ActiveDoc?.Views.Redraw();
+                    
+                    // Grasshopperキャンバスも再描画
+                    Grasshopper.Instances.ActiveCanvas?.Refresh();
+                };
+                menu.Items.Add(item);
+            }
+            
+            GH_Canvas canvas = Grasshopper.Instances.ActiveCanvas;
+            
+            PointF canvasPoint = new PointF(
+                _lengthUnitDropdownBounds.Left,
+                _lengthUnitDropdownBounds.Bottom
+            );
+            
+            PointF controlPoint = canvas.Viewport.ProjectPoint(canvasPoint);
+            Point screenLocation = canvas.PointToScreen(Point.Round(controlPoint));
+            
+            menu.Show(screenLocation);
         }
 
         #endregion

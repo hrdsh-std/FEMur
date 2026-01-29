@@ -6,6 +6,7 @@ using MathNet.Numerics.LinearAlgebra;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 
 namespace FEMur.Elements
@@ -56,6 +57,11 @@ namespace FEMur.Elements
             Material = material;
             CrossSection = crossSection;
             BetaAngle = betaAngle;
+        }
+        public LineElement(LineElement other)
+            : base(other)
+        {
+            BetaAngle = other.BetaAngle;
         }
 
         /// <summary>

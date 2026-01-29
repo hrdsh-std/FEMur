@@ -4,6 +4,7 @@ using Grasshopper.Kernel;
 using Rhino.Geometry;
 using FEMur.Loads;
 using FEMur.Geometry;
+using FEMurGH.Extensions;
 
 namespace FEMurGH.Comoponents.Loads
 {
@@ -23,6 +24,10 @@ namespace FEMurGH.Comoponents.Loads
             pManager.AddPointParameter("Points", "P", "Points where loads are applied (will match with existing nodes)", GH_ParamAccess.list);
             pManager.AddVectorParameter("Force", "F", "Force vector [N] (Global coordinates). Single value applies to all points, or one per point", GH_ParamAccess.list);
             pManager.AddVectorParameter("Moment", "M", "Moment vector [N·mm] (Global coordinates). Single value applies to all points, or one per point", GH_ParamAccess.list);
+            
+            // ForceとMomentはオプション入力にし、デフォルト値をゼロベクトルに設定
+            pManager[1].Optional = true;
+            pManager[2].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -43,69 +48,56 @@ namespace FEMurGH.Comoponents.Loads
             var ghForces = new List<Vector3d>();
             var ghMoments = new List<Vector3d>();
 
-            if (!DA.GetDataList(1, ghForces))
-            {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "No forces provided");
-                return;
-            }
-
-            if (!DA.GetDataList(2, ghMoments))
-            {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "No moments provided");
-                return;
-            }
-
-            // 入力のバリデーション
-            if (ghForces.Count == 0)
+            // Forceの取得（入力がない場合はゼロベクトル）
+            if (!DA.GetDataList(1, ghForces) || ghForces.Count == 0)
             {
                 ghForces.Add(Vector3d.Zero);
             }
 
-            if (ghMoments.Count == 0)
+            // Momentの取得（入力がない場合はゼロベクトル）
+            if (!DA.GetDataList(2, ghMoments) || ghMoments.Count == 0)
             {
                 ghMoments.Add(Vector3d.Zero);
             }
 
-            // リストのサイズチェック
+            // リストのサイズを取得
             int pointCount = points.Count;
             int forceCount = ghForces.Count;
             int momentCount = ghMoments.Count;
 
-            // 複数入力時のサイズ不一致チェック
-            if (forceCount > 1 && forceCount != pointCount)
+            // エラーチェック: Points と Force が両方とも複数で、かつ個数が一致しない場合
+            if (pointCount > 1 && forceCount > 1 && pointCount != forceCount)
             {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, 
-                    $"Force count ({forceCount}) must be 1 or match point count ({pointCount})");
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error,
+                    $"Point count ({pointCount}) and Force count ({forceCount}) must match when both are greater than 1");
                 return;
             }
 
-            if (momentCount > 1 && momentCount != pointCount)
+            // エラーチェック: Points と Moment が両方とも複数で、かつ個数が一致しない場合
+            if (pointCount > 1 && momentCount > 1 && pointCount != momentCount)
             {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, 
-                    $"Moment count ({momentCount}) must be 1 or match point count ({pointCount})");
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error,
+                    $"Point count ({pointCount}) and Moment count ({momentCount}) must match when both are greater than 1");
                 return;
             }
 
-            var loads = new List<FEMur.Loads.PointLoad>(pointCount);
+            // 最大のカウント数を取得（Grasshopperのデータマッチング動作を再現）
+            int maxCount = Math.Max(pointCount, Math.Max(forceCount, momentCount));
 
-            for (int i = 0; i < pointCount; i++)
+            List<FEMur.Loads.PointLoad> loads = new List<FEMur.Loads.PointLoad>(maxCount);
+
+            for (int i = 0; i < maxCount; i++)
             {
-                var pt = points[i];
+                // Grasshopperのデータマッチング: 最後の要素を繰り返す
+                var pt = points[Math.Min(i, pointCount - 1)];
+                Vector3d ghF = ghForces[Math.Min(i, forceCount - 1)];
+                Vector3d ghM = ghMoments[Math.Min(i, momentCount - 1)];
 
-                // Forceの取得（単一値の場合は全てに適用、複数の場合は対応するインデックス）
-                Vector3d ghF = (forceCount == 1) ? ghForces[0] : ghForces[i];
+                // Rhino型をFEMur型に変換（拡張メソッドを使用）
+                var femurPoint = pt.ToFEMurPoint3();
+                var force = ghF.ToFEMurVector3();
+                var moment = ghM.ToFEMurVector3();
 
-                // Momentの取得（単一値の場合は全てに適用、複数の場合は対応するインデックス）
-                Vector3d ghM = (momentCount == 1) ? ghMoments[0] : ghMoments[i];
-
-                // Rhino Vector3d を FEMur Vector3 に変換
-                var force = new Vector3(ghF.X, ghF.Y, ghF.Z);
-                var moment = new Vector3(ghM.X, ghM.Y, ghM.Z);
-
-                // Rhino Point3d を FEMur Point3 に変換
-                var femurPoint = new Point3(pt.X, pt.Y, pt.Z);
-
-                // PointLoad(Point3 position, Vector3 force, Vector3 moment)
                 loads.Add(new FEMur.Loads.PointLoad(femurPoint, force, moment));
             }
 

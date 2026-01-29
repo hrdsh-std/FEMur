@@ -30,7 +30,7 @@ namespace FEMurGH.Common.Drawing
             // ラベル（数値）
             if (showNumbers && !string.IsNullOrEmpty(valueText))
             {
-                display.Draw2dText(valueText, arrow.Color, arrow.End, true, fontSize);
+                display.Draw2dText(valueText, arrow.Color, arrow.Start, true, fontSize);
             }
         }
 

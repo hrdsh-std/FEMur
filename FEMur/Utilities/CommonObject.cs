@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace FEMur.Utilities
 {
-    public class CommonObject:ICloneable,ISerializable
+    public abstract class CommonObject:ICloneable,ISerializable
     {
         //ユーザーデータを格納
         private Dictionary<string, object> UserData { get; } = new Dictionary<string, object>();
@@ -26,6 +26,7 @@ namespace FEMur.Utilities
         {
             return this.MemberwiseClone();
         }
+        public abstract object DeepCopy();
         public override string ToString()
         {
             throw new NotImplementedException("ToString method not implemented yet.");

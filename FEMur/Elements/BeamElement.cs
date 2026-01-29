@@ -51,6 +51,14 @@ namespace FEMur.Elements
             : base(info, context)
         {
         }
+        public BeamElement(BeamElement other)
+            : base(other)
+        {
+        }
+        public override object DeepCopy()
+        {
+            return new BeamElement(this);
+        }
 
         internal override Matrix<double> CalcLocalStiffness(List<Node> nodes)
         {
@@ -225,5 +233,7 @@ namespace FEMur.Elements
         {
             return $"BeamElement(From:{Points[0].ToString()},To:{Points[1].ToString()}, Material:{Material.Name}, CrossSection:{CrossSection.Name}, β:{BetaAngle:F1}°)";
         }
+
+        
     }
 }

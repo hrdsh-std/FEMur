@@ -9,6 +9,8 @@ using FEMur.Elements;
 using FEMur.Supports;
 using FEMur.Loads;
 using FEMur.Models;
+using FEMur.Common.Units;
+using FEMurGH.Comoponents.Results;
 
 namespace FEMurGH.Comoponents.Models
 {
@@ -28,11 +30,15 @@ namespace FEMurGH.Comoponents.Models
         public bool ShowCrossSection { get; set; } = false;
         public double LocalAxisScale { get; set; } = 0.3;
 
+        // 単位選択
+        public ForceUnit SelectedForceUnit { get; set; } = ForceUnit.N;
+        public LengthUnit SelectedLengthUnit { get; set; } = LengthUnit.mm;
+
         // 展開タブの状態
         public bool IsDisplayTabExpanded { get; set; } = false;
 
         // キャッシュ
-        private Model _cachedModel = null;
+        internal Model _cachedModel = null;
         private Dictionary<int, Point3d> _nodePositions = new Dictionary<int, Point3d>();
         private Dictionary<int, Point3d> _elementCenters = new Dictionary<int, Point3d>();
         private List<LocalAxisArrow> _localAxisArrows = new List<LocalAxisArrow>();
@@ -70,7 +76,7 @@ namespace FEMurGH.Comoponents.Models
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Model", "M", "FEMur Model", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Model", "M", "FEMur Model (Not analyzed - use LinearStaticSolver)", GH_ParamAccess.item);
         }
 
         #endregion
@@ -89,15 +95,31 @@ namespace FEMurGH.Comoponents.Models
                 return;
             }
 
-            DA.GetDataList(1, supports);
-            DA.GetDataList(2, loads);
+            if (!DA.GetDataList(1, supports))
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Supports are required");
+                return;
+            }
+            
+            if (!DA.GetDataList(2, loads))
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Loads are required");
+                return;
+            }
 
             try
             {
+                // Grasshopperのオブジェクト再利用対策：キャッシュされたIDをリセット
                 ResetCachedIds(elements, supports, loads);
+                
                 var model = new Model(new List<Node>(), elements, supports, loads);
-                _cachedModel = model;
+                
+                // 重要: 新しく組み立てたモデルは未解析状態であることを明示
+                model.IsSolved = false;
+                model.Result = null;
 
+                // 描画用のキャッシュ
+                _cachedModel = model;
                 UpdateCaches(model);
 
                 DA.SetData(0, model);
@@ -146,7 +168,7 @@ namespace FEMurGH.Comoponents.Models
         /// <summary>
         /// キャッシュを更新
         /// </summary>
-        private void UpdateCaches(Model model)
+        internal void UpdateCaches(Model model)
         {
             CachePositions(model.Nodes, model.Elements);
             GenerateElementLines(model.Elements, model.Nodes);
@@ -223,6 +245,8 @@ namespace FEMurGH.Comoponents.Models
             writer.SetBoolean("ShowCrossSection", ShowCrossSection);
             writer.SetDouble("LocalAxisScale", LocalAxisScale);
             writer.SetBoolean("IsDisplayTabExpanded", IsDisplayTabExpanded);
+            writer.SetInt32("SelectedForceUnit", (int)SelectedForceUnit);
+            writer.SetInt32("SelectedLengthUnit", (int)SelectedLengthUnit);
             return base.Write(writer);
         }
 
@@ -244,6 +268,10 @@ namespace FEMurGH.Comoponents.Models
                 LocalAxisScale = reader.GetDouble("LocalAxisScale");
             if (reader.ItemExists("IsDisplayTabExpanded"))
                 IsDisplayTabExpanded = reader.GetBoolean("IsDisplayTabExpanded");
+            if (reader.ItemExists("SelectedForceUnit"))
+                SelectedForceUnit = (ForceUnit)reader.GetInt32("SelectedForceUnit");
+            if (reader.ItemExists("SelectedLengthUnit"))
+                SelectedLengthUnit = (LengthUnit)reader.GetInt32("SelectedLengthUnit");
             return base.Read(reader);
         }
 

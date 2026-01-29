@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using FEMur.Nodes;
 using FEMur.Geometry;
+using FEMur.Utilities;
 
 namespace FEMur.Loads
 {
@@ -32,6 +33,11 @@ namespace FEMur.Loads
         protected PointAction(Node node)
         {
             NodeId = node.Id;
+        }
+        protected PointAction(PointAction other):base(other)
+        {
+            this.NodeId = other.NodeId;
+            this.Position = other.Position;
         }
     }
 }
