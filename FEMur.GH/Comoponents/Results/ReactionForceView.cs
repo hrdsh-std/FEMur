@@ -6,8 +6,10 @@ using Grasshopper.Kernel;
 using Rhino.Geometry;
 using FEMur.Models;
 using FEMur.Results;
-using FEMur.Common.Units; // 追加
+using FEMur.Common.Units;
 using FEMurGH.Extensions;
+using FEMurGH.Common.Drawing;
+using FEMurGH.Common.Utils;
 
 namespace FEMurGH.Comoponents.Results
 {
@@ -270,10 +272,6 @@ namespace FEMurGH.Comoponents.Results
             if (model.Result == null || model.Result.ReactionForces == null || model.Result.ReactionForces.Count == 0)
                 return 1.0;
 
-            // モデルサイズを取得
-            double modelSize = CalculateModelCharacteristicLength(model);
-            if (modelSize <= 0) return 1.0;
-
             // 最大反力（力）を取得
             double maxForce = 0.0;
 
@@ -287,11 +285,8 @@ namespace FEMurGH.Comoponents.Results
             if (maxForce <= 0)
                 return 1.0;
 
-            // 力の自動スケール = モデルサイズの15% / 最大反力
-            // より大きな矢印にするため係数を増やす
-            double forceScale = (modelSize * 0.15) / maxForce;
-
-            return forceScale;
+            // ModelCalculatorを使用して自動スケールを計算
+            return ModelCalculator.CalculateForceAutoScale(model, maxForce, 0.15);
         }
 
         /// <summary>
@@ -304,10 +299,6 @@ namespace FEMurGH.Comoponents.Results
 
             if (model.Result == null || model.Result.ReactionForces == null || model.Result.ReactionForces.Count == 0)
                 return 1.0;
-
-            // モデルサイズを取得
-            double modelSize = CalculateModelCharacteristicLength(model);
-            if (modelSize <= 0) return 1.0;
 
             // 最大モーメントを取得
             double maxMoment = 0.0;
@@ -322,38 +313,8 @@ namespace FEMurGH.Comoponents.Results
             if (maxMoment <= 0)
                 return 1.0;
 
-            // モーメントの自動スケール = モデルサイズの10% / 最大モーメント
-            double momentScale = (modelSize * 0.1) / maxMoment;
-
-            return momentScale;
-        }
-
-        /// <summary>
-        /// モデルの特性寸法を計算
-        /// </summary>
-        private double CalculateModelCharacteristicLength(Model model)
-        {
-            if (model.Nodes == null || model.Nodes.Count == 0)
-                return 0.0;
-
-            double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue;
-            double maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
-
-            foreach (var node in model.Nodes)
-            {
-                minX = Math.Min(minX, node.Position.X);
-                minY = Math.Min(minY, node.Position.Y);
-                minZ = Math.Min(minZ, node.Position.Z);
-                maxX = Math.Max(maxX, node.Position.X);
-                maxY = Math.Max(maxY, node.Position.Y);
-                maxZ = Math.Max(maxZ, node.Position.Z);
-            }
-
-            double dx = maxX - minX;
-            double dy = maxY - minY;
-            double dz = maxZ - minZ;
-
-            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            // ModelCalculatorを使用して自動スケールを計算
+            return ModelCalculator.CalculateMomentAutoScale(model, maxMoment, 0.1);
         }
 
         #endregion
@@ -370,147 +331,17 @@ namespace FEMurGH.Comoponents.Results
             // 力の矢印を描画
             foreach (var arrow in _forceArrows)
             {
-                DrawForceArrow(display, arrow);
+                double convertedValue = UnitConverter.ConvertForce(arrow.Magnitude, SelectedForceUnit);
+                string valueText = ShowNumbers ? $"{convertedValue:F1}" : null;
+                ArrowRenderer.DrawForceArrow(display, arrow, ShowNumbers, valueText, 12);
             }
 
             // モーメントの矢印を描画
             foreach (var moment in _momentArrows)
             {
-                DrawMomentArrow(display, moment);
-            }
-        }
-
-        /// <summary>
-        /// 力の矢印を描画
-        /// </summary>
-        private void DrawForceArrow(Rhino.Display.DisplayPipeline display, ArrowGeometry arrow)
-        {
-            // 矢印の線
-            display.DrawArrow(new Line(arrow.Start, arrow.End), arrow.Color, 20, 5);
-
-            // ラベル（数値を単位変換して表示）
-            if (ShowNumbers)
-            {
-                double convertedValue = UnitConverter.ConvertForce(arrow.Magnitude, SelectedForceUnit);
-                string unitSymbol = UnitConverter.GetForceUnitSymbol(SelectedForceUnit);
-                string labelText = $"{convertedValue:F1}";
-                display.Draw2dText(labelText, arrow.Color, arrow.End, true, 12);
-            }
-        }
-
-        /// <summary>
-        /// モーメントの矢印を描画（二重矢印、右ネジ系）
-        /// </summary>
-        private void DrawMomentArrow(Rhino.Display.DisplayPipeline display, MomentArrowGeometry moment)
-        {
-            // モーメントの大きさが小さすぎる場合はスキップ
-            if (moment.Radius < 0.01)
-                return;
-
-            // 回転軸に垂直な平面上に円弧を描画
-            Vector3d axis = moment.Axis;
-            axis.Unitize();
-
-            // 軸ごとに作業平面を定義（右手系を保証）
-            Vector3d perpendicular1, perpendicular2;
-
-            if (Math.Abs(axis.X - 1.0) < 0.01) // X軸周りのモーメント（Mx）
-            {
-                // X軸周り: Y軸を基準、Z軸方向へ
-                perpendicular1 = Vector3d.YAxis;
-                perpendicular2 = Vector3d.ZAxis;
-            }
-            else if (Math.Abs(axis.Y - 1.0) < 0.01) // Y軸周りのモーメント（My）
-            {
-                // Y軸周り: Z軸を基準、X軸方向へ
-                perpendicular1 = Vector3d.ZAxis;
-                perpendicular2 = Vector3d.XAxis;
-            }
-            else if (Math.Abs(axis.Z - 1.0) < 0.01) // Z軸周りのモーメント（Mz）
-            {
-                // Z軸周り: X軸を基準、Y軸方向へ
-                perpendicular1 = Vector3d.XAxis;
-                perpendicular2 = Vector3d.YAxis;
-            }
-            else // 一般的な軸（念のため）
-            {
-                // フォールバック: 従来のロジック
-                if (Math.Abs(axis.X) < 0.9)
-                {
-                    perpendicular1 = Vector3d.CrossProduct(axis, Vector3d.XAxis);
-                }
-                else
-                {
-                    perpendicular1 = Vector3d.CrossProduct(axis, Vector3d.YAxis);
-                }
-                perpendicular1.Unitize();
-                perpendicular2 = Vector3d.CrossProduct(axis, perpendicular1);
-                perpendicular2.Unitize();
-            }
-
-            // 円弧を描画（右ネジの法則）
-            int segments = 32;
-            double arcAngle = 1.5 * Math.PI; // 270度の円弧
-            double angleStep = arcAngle / segments;
-
-            List<Point3d> arcPoints = new List<Point3d>();
-
-            for (int i = 0; i <= segments; i++)
-            {
-                double angle = i * angleStep;
-
-                // 右ネジの法則: 
-                // 正のモーメント → 軸の正方向を向いて見た時、反時計回り
-                // 負のモーメント → 軸の正方向を向いて見た時、時計回り
-                // clockwise = true の時、右ネジ
-                double actualAngle = moment.Clockwise ? angle : -angle;
-
-                Vector3d radial = perpendicular1 * Math.Cos(actualAngle) + perpendicular2 * Math.Sin(actualAngle);
-                Point3d point = moment.Center + radial * moment.Radius;
-                arcPoints.Add(point);
-            }
-
-            // 外側の円弧を描画
-            if (arcPoints.Count > 1)
-            {
-                for (int i = 0; i < arcPoints.Count - 1; i++)
-                {
-                    display.DrawLine(arcPoints[i], arcPoints[i + 1], moment.Color, 3);
-                }
-
-                // 矢印の先端（終点）
-                Point3d arrowTip = arcPoints[arcPoints.Count - 1];
-                
-                // 接線ベクトルを計算
-                if (arcPoints.Count >= 2)
-                {
-                    Vector3d tangent = arcPoints[arcPoints.Count - 1] - arcPoints[arcPoints.Count - 2];
-                    tangent.Unitize();
-                    
-                    // 矢印ヘッドを描画（接線方向）
-                    double arrowSize = moment.Radius * 0.3;
-                    
-                    // 法線方向（半径方向内向き）
-                    Vector3d radialIn = moment.Center - arrowTip;
-                    radialIn.Unitize();
-                    
-                    // 矢印の両側
-                    Vector3d arrowLeft = tangent * (-arrowSize) + radialIn * (arrowSize * 0.3);
-                    Vector3d arrowRight = tangent * (-arrowSize) - radialIn * (arrowSize * 0.3);
-
-                    display.DrawLine(arrowTip, arrowTip + arrowLeft, moment.Color, 3);
-                    display.DrawLine(arrowTip, arrowTip + arrowRight, moment.Color, 3);
-                }
-
-                // ラベル（数値を単位変換して表示）
-                if (ShowNumbers)
-                {
-                    double convertedValue = UnitConverter.ConvertMoment(moment.Magnitude, SelectedForceUnit, SelectedLengthUnit);
-                    string unitSymbol = UnitConverter.GetMomentUnitSymbol(SelectedForceUnit, SelectedLengthUnit);
-                    string labelText = $"{convertedValue:F1}";
-                    Point3d labelPos = arcPoints[arcPoints.Count / 2]; // 円弧の中央にラベル
-                    display.Draw2dText(labelText, moment.Color, labelPos, true, 12);
-                }
+                double convertedValue = UnitConverter.ConvertMoment(moment.Magnitude, SelectedForceUnit, SelectedLengthUnit);
+                string valueText = ShowNumbers ? $"{convertedValue:F1}" : null;
+                ArrowRenderer.DrawMomentArrow(display, moment, ShowNumbers, valueText, 12);
             }
         }
 
@@ -586,37 +417,6 @@ namespace FEMurGH.Comoponents.Results
             if (reader.ItemExists("SelectedLengthUnit"))
                 SelectedLengthUnit = (LengthUnit)reader.GetInt32("SelectedLengthUnit");
             return base.Read(reader);
-        }
-
-        #endregion
-
-        #region Helper Classes
-
-        /// <summary>
-        /// 力の矢印ジオメトリ
-        /// </summary>
-        private class ArrowGeometry
-        {
-            public Point3d Start { get; set; }
-            public Point3d End { get; set; }
-            public Vector3d Direction { get; set; }
-            public double Magnitude { get; set; }
-            public Color Color { get; set; }
-            public string Label { get; set; }
-        }
-
-        /// <summary>
-        /// モーメントの矢印ジオメトリ
-        /// </summary>
-        private class MomentArrowGeometry
-        {
-            public Point3d Center { get; set; }
-            public Vector3d Axis { get; set; }
-            public double Radius { get; set; }
-            public double Magnitude { get; set; }
-            public bool Clockwise { get; set; }
-            public Color Color { get; set; }
-            public string Label { get; set; }
         }
 
         #endregion

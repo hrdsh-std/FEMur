@@ -9,7 +9,7 @@ using Rhino.Geometry;
 using Grasshopper;
 using Grasshopper.Kernel;
 
-namespace FEMurGH.Utils
+namespace FEMurGH.Common.Utils
 {
     public class TabProperties : GH_AssemblyPriority
     {

@@ -30,6 +30,7 @@ namespace FEMurGH.Comoponents.Results
         private const float RADIO_BUTTON_SPACING = 26f; // より詰める
         private const float LINE_HEIGHT = 15f;
         private const float LABEL_HEIGHT = 12f;
+        private const float SECTION_SPACING = 2f;
 
         private const int CHECKBOX_COUNT = 6; // Fx, Fy, Fz, Mx, My, Mz
 
@@ -104,7 +105,7 @@ namespace FEMurGH.Comoponents.Results
             // メニューコンテンツのレイアウト
             if (Cmp.IsReactionForceTabExpanded)
             {
-                float menuTop = reactionsArea.Bottom;
+                float menuTop = reactionsArea.Bottom + SECTION_SPACING;
                 menuContentArea = new RectangleF(
                     bounds.Left + COMPONENT_MARGIN_HORIZONTAL,
                     menuTop,

@@ -23,8 +23,9 @@ namespace FEMurGH.Comoponents.Results
         private const float TAB_MARGIN_BOTTOM = 2f;
 
         private const float MENU_LEFT_MARGIN = 8f;
-        private const float MENU_TOP_PADDING = 5f;
-        private const float MENU_BOTTOM_PADDING = 3f;
+        private const float MENU_TOP_PADDING = 2f;
+        private const float MENU_BOTTOM_PADDING = 2f;
+        private const float GROUP_SPACING = 4f;
 
         private const float CONTROL_SIZE = 10f;
         private const float CONTROL_RIGHT_MARGIN = 15f;
@@ -32,14 +33,14 @@ namespace FEMurGH.Comoponents.Results
         private const float RADIO_BUTTON_SIZE = 10f;
 
         private const float LINE_HEIGHT_NORMAL = 15f;
-        private const float SECTION_SPACING = 8f;
+        private const float SECTION_SPACING = 4f;
 
-        // ラジオボタン7つ + セパレータ + チェックボックス2つ
+        // チェックボックス2つ + ラジオボタン7つ + セパレータ
         private const int RADIO_BUTTON_COUNT = 7;
         private const int CHECKBOX_COUNT = 2;
-        private float MENU_CONTENT_HEIGHT => (RADIO_BUTTON_COUNT * LINE_HEIGHT_NORMAL) + 
+        private float MENU_CONTENT_HEIGHT => (CHECKBOX_COUNT * LINE_HEIGHT_NORMAL) + 
                                               SECTION_SPACING + 
-                                              (CHECKBOX_COUNT * LINE_HEIGHT_NORMAL) + 
+                                              (RADIO_BUTTON_COUNT * LINE_HEIGHT_NORMAL) + 
                                               MENU_TOP_PADDING + 
                                               MENU_BOTTOM_PADDING;
 
@@ -47,6 +48,7 @@ namespace FEMurGH.Comoponents.Results
         private static readonly Color CONTROL_FILL_COLOR = Color.FromArgb(80, 80, 80);
         private static readonly Color TEXT_COLOR = Color.Black;
         private static readonly Color TAB_TEXT_COLOR = Color.White;
+        private static readonly Color GROUP_BACKGROUND_COLOR = Color.FromArgb(240, 240, 240);
 
         #endregion
 
@@ -56,7 +58,13 @@ namespace FEMurGH.Comoponents.Results
 
         private RectangleF displayArea;
         
-        // ラジオボタン
+        // チェックボックスグループ
+        private RectangleF checkboxGroupArea;
+        private RectangleF showNumbersCheckBox;
+        private RectangleF showLegendCheckBox;
+
+        // ラジオボタングループ
+        private RectangleF radioGroupArea;
         private RectangleF dxRadio;
         private RectangleF dyRadio;
         private RectangleF dzRadio;
@@ -64,10 +72,6 @@ namespace FEMurGH.Comoponents.Results
         private RectangleF dyzRadio;
         private RectangleF dzxRadio;
         private RectangleF dxyzRadio;
-
-        // チェックボックス
-        private RectangleF showNumbersCheckBox;
-        private RectangleF showLegendCheckBox;
 
         #endregion
 
@@ -100,11 +104,31 @@ namespace FEMurGH.Comoponents.Results
 
             if (Cmp.IsDisplayTabExpanded)
             {
-                float currentY = displayArea.Bottom + MENU_TOP_PADDING;
-                float leftMargin = bounds.Left + MENU_LEFT_MARGIN;
+                float currentY = displayArea.Bottom + SECTION_SPACING;
                 float rightPosition = bounds.Right - CONTROL_RIGHT_MARGIN;
 
-                // ラジオボタン（変形方向選択）
+                // チェックボックスグループ
+                float checkboxGroupTop = currentY;
+                
+                showNumbersCheckBox = CreateControlRect(rightPosition, currentY);
+                currentY += LINE_HEIGHT_NORMAL;
+
+                showLegendCheckBox = CreateControlRect(rightPosition, currentY);
+                currentY += LINE_HEIGHT_NORMAL;
+
+                checkboxGroupArea = new RectangleF(
+                    bounds.Left + COMPONENT_MARGIN_HORIZONTAL,
+                    checkboxGroupTop - 2,
+                    bounds.Width - (COMPONENT_MARGIN_HORIZONTAL * 2),
+                    (CHECKBOX_COUNT * LINE_HEIGHT_NORMAL) + 2
+                );
+
+                // セクション区切り
+                currentY += SECTION_SPACING;
+
+                // ラジオボタングループ
+                float radioGroupTop = currentY;
+
                 dxRadio = CreateControlRect(rightPosition, currentY);
                 currentY += LINE_HEIGHT_NORMAL;
 
@@ -126,14 +150,12 @@ namespace FEMurGH.Comoponents.Results
                 dxyzRadio = CreateControlRect(rightPosition, currentY);
                 currentY += LINE_HEIGHT_NORMAL;
 
-                // セクション区切り
-                currentY += SECTION_SPACING;
-
-                // チェックボックス
-                showNumbersCheckBox = CreateControlRect(rightPosition, currentY);
-                currentY += LINE_HEIGHT_NORMAL;
-
-                showLegendCheckBox = CreateControlRect(rightPosition, currentY);
+                radioGroupArea = new RectangleF(
+                    bounds.Left + COMPONENT_MARGIN_HORIZONTAL,
+                    radioGroupTop - 2,
+                    bounds.Width - (COMPONENT_MARGIN_HORIZONTAL * 2),
+                    (RADIO_BUTTON_COUNT * LINE_HEIGHT_NORMAL) + 2
+                );
             }
         }
 
@@ -194,8 +216,31 @@ namespace FEMurGH.Comoponents.Results
             var font = GH_FontServer.Small;
             float leftMargin = Bounds.Left + MENU_LEFT_MARGIN;
 
+            // チェックボックスグループのカプセル
+            GH_Palette palette = GH_Palette.White;
+            if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Error)
+                palette = GH_Palette.Error;
+            else if (Cmp.RuntimeMessageLevel == GH_RuntimeMessageLevel.Warning)
+                palette = GH_Palette.Warning;
+            
+            GH_Capsule checkboxCapsule = GH_Capsule.CreateCapsule(checkboxGroupArea, palette, 2, 0);
+            checkboxCapsule.Render(graphics, Selected,Cmp.Locked,Cmp.Hidden);
+            checkboxCapsule.Dispose();
+
+            // ラジオボタングループのカプセル
+            GH_Capsule radioCapsule = GH_Capsule.CreateCapsule(radioGroupArea, palette, 2, 0);
+            radioCapsule.Render(graphics, Selected, Cmp.Locked, Cmp.Hidden);
+            radioCapsule.Dispose();
+
             using (SolidBrush textBrush = new SolidBrush(TEXT_COLOR))
             {
+                // チェックボックス
+                graphics.DrawString("ShowNumbers", font, textBrush, leftMargin, showNumbersCheckBox.Top);
+                DrawCheckBox(graphics, showNumbersCheckBox, Cmp.ShowNumbers);
+
+                graphics.DrawString("Legend", font, textBrush, leftMargin, showLegendCheckBox.Top);
+                DrawCheckBox(graphics, showLegendCheckBox, Cmp.ShowLegend);
+
                 // ラジオボタン（変形方向選択）
                 graphics.DrawString("Dx", font, textBrush, leftMargin, dxRadio.Top);
                 DrawRadioButton(graphics, dxRadio, Cmp.SelectedDirection == DeformationView.DeformationDirection.Dx);
@@ -217,13 +262,6 @@ namespace FEMurGH.Comoponents.Results
 
                 graphics.DrawString("Dxyz", font, textBrush, leftMargin, dxyzRadio.Top);
                 DrawRadioButton(graphics, dxyzRadio, Cmp.SelectedDirection == DeformationView.DeformationDirection.Dxyz);
-
-                // チェックボックス
-                graphics.DrawString("ShowNumbers", font, textBrush, leftMargin, showNumbersCheckBox.Top);
-                DrawCheckBox(graphics, showNumbersCheckBox, Cmp.ShowNumbers);
-
-                graphics.DrawString("Legend", font, textBrush, leftMargin, showLegendCheckBox.Top);
-                DrawCheckBox(graphics, showLegendCheckBox, Cmp.ShowLegend);
             }
         }
 
@@ -293,6 +331,14 @@ namespace FEMurGH.Comoponents.Results
                 // 展開時のみコントロール処理
                 if (Cmp.IsDisplayTabExpanded)
                 {
+                    // チェックボックス
+                    if (HandleCheckBoxClick(showNumbersCheckBox, e.CanvasLocation, 
+                        () => Cmp.ShowNumbers, v => Cmp.ShowNumbers = v))
+                        return GH_ObjectResponse.Handled;
+                    if (HandleCheckBoxClick(showLegendCheckBox, e.CanvasLocation, 
+                        () => Cmp.ShowLegend, v => Cmp.ShowLegend = v))
+                        return GH_ObjectResponse.Handled;
+
                     // ラジオボタン（変形方向選択）
                     if (HandleRadioButtonClick(dxRadio, e.CanvasLocation, DeformationView.DeformationDirection.Dx))
                         return GH_ObjectResponse.Handled;
@@ -307,14 +353,6 @@ namespace FEMurGH.Comoponents.Results
                     if (HandleRadioButtonClick(dzxRadio, e.CanvasLocation, DeformationView.DeformationDirection.Dzx))
                         return GH_ObjectResponse.Handled;
                     if (HandleRadioButtonClick(dxyzRadio, e.CanvasLocation, DeformationView.DeformationDirection.Dxyz))
-                        return GH_ObjectResponse.Handled;
-
-                    // チェックボックス
-                    if (HandleCheckBoxClick(showNumbersCheckBox, e.CanvasLocation, 
-                        () => Cmp.ShowNumbers, v => Cmp.ShowNumbers = v))
-                        return GH_ObjectResponse.Handled;
-                    if (HandleCheckBoxClick(showLegendCheckBox, e.CanvasLocation, 
-                        () => Cmp.ShowLegend, v => Cmp.ShowLegend = v))
                         return GH_ObjectResponse.Handled;
                 }
             }
