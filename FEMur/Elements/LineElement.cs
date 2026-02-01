@@ -16,6 +16,33 @@ namespace FEMur.Elements
     {
         public double BetaAngle { get; set; } = 0.0;
 
+        /// <summary>
+        /// 始端ノードのID（NodeIds[0]のエイリアス）
+        /// </summary>
+        public int Start
+        {
+            get
+            {
+                if (NodeIds == null || NodeIds.Count < 1)
+                    throw new InvalidOperationException($"LineElement(Id={Id}) does not have a start node.");
+                return NodeIds[0];
+            }
+        }
+
+        /// <summary>
+        /// 終端ノードのID（NodeIds[1]のエイリアス）
+        /// </summary>
+        public int End
+        {
+            get
+            {
+                if (NodeIds == null || NodeIds.Count < 2)
+                    throw new InvalidOperationException($"LineElement(Id={Id}) does not have an end node.");
+                return NodeIds[1];
+            }
+        }
+
+
         public LineElement() { }
 
         // IDなしコンストラクタ（推奨）

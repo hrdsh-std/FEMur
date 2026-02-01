@@ -12,6 +12,7 @@ using FEMur.Materials;
 using FEMur.Supports;
 using FEMur.Loads;
 using FEMur.Results;
+using FEMur.Joints;
 
 namespace FEMur.Models
 {
@@ -21,6 +22,7 @@ namespace FEMur.Models
         public List<ElementBase> Elements { get; set; }
         public List<Support> Supports { get; set; }
         public List<Load> Loads { get; set; }
+        public List<Joint> Joints { get; set; }
 
         // 追加: 解析結果を保持
         public Result Result { get; set; }
@@ -37,6 +39,7 @@ namespace FEMur.Models
             Elements = new List<ElementBase>();
             Supports = new List<Support>();
             Loads = new List<Load>();
+            Joints = new List<Joint>();
             Result = null;
             IsSolved = false;
         }
@@ -44,12 +47,13 @@ namespace FEMur.Models
         public Model
             (List<Node> nodes, List<ElementBase> elements, 
             List<Support> supports,
-            List<Load> loads)
+            List<Load> loads, List<Joint> joints = null)
         {
             Nodes = nodes ?? new List<Node>();
-            Elements = elements;
-            Supports = supports;
-            Loads = loads;
+            Elements = elements ?? new List<ElementBase>();
+            Supports = supports ?? new List<Support>();
+            Loads = loads ?? new List<Load>();
+            Joints = joints ?? new List<Joint>();
             Result = null;
             IsSolved = false;
             
@@ -67,6 +71,7 @@ namespace FEMur.Models
             this.Elements = other.Elements.Select(e => (ElementBase)e.DeepCopy()).ToList();
             this.Supports = other.Supports.Select(s => (Support)s.DeepCopy()).ToList();
             this.Loads = other.Loads.Select(l => (Load)l.DeepCopy()).ToList();
+            this.Joints = other.Joints?.Select(j => (Joint)j.DeepCopy()).ToList() ?? new List<Joint>();
 
             this.Result = null;
             this.IsSolved = false;
@@ -91,6 +96,15 @@ namespace FEMur.Models
             Loads = (List<Load>)info.GetValue("Loads", typeof(List<Load>));
             
             // シリアライゼーション時の互換性のため、nullチェック
+            try
+            {
+                Joints = (List<Joint>)info.GetValue("Joints", typeof(List<Joint>));
+            }
+            catch
+            {
+                Joints = new List<Joint>();
+            }
+            
             try
             {
                 Result = (Result)info.GetValue("Result", typeof(Result));
@@ -129,6 +143,11 @@ namespace FEMur.Models
                 Elements = new List<ElementBase>();
             }
 
+            if (Joints == null)
+            {
+                Joints = new List<Joint>();
+            }
+
             // === ノードID自動採番 ===
             int nextNodeId = 0;
             var nodeByCoordinate = new Dictionary<Point3, Node>(new Point3Comparer(NodeTolerance));
@@ -163,7 +182,7 @@ namespace FEMur.Models
             }
 
             // === 要素の検証と修復（ノード自動生成）=== 
-            // ★ Support/Load処理の前に移動
+            // ★ Support/Load/Joint処理の前に移動
             if (Elements != null)
             {
                 for (int i = 0; i < Elements.Count; i++)
@@ -246,6 +265,25 @@ namespace FEMur.Models
                     }
 
                     usedElementIds.Add(element.Id);
+                }
+            }
+
+            // === Joints の ElementId 自動更新 ===
+            // ★ Element処理の後に移動（要素IDが確定している）
+            if (Joints != null && Joints.Count > 0)
+            {
+                for (int i = 0; i < Joints.Count; i++)
+                {
+                    var joint = Joints[i];
+
+                    // 要素オブジェクトからElementIdを更新
+                    joint.UpdateElementIdFromElement();
+
+                    // ElementIdが-1の場合は警告
+                    if (joint.ElementId < 0)
+                    {
+                        warnings.Add($"Joint[{i}]: ElementId is not set. Joint will be ignored during analysis.");
+                    }
                 }
             }
 
@@ -348,6 +386,29 @@ namespace FEMur.Models
                 }
             }
 
+            // === Joints の検証 ===
+            if (Joints != null && Joints.Count > 0)
+            {
+                var elementIds = Elements?.Select(e => e.Id).ToHashSet() ?? new HashSet<int>();
+
+                for (int i = 0; i < Joints.Count; i++)
+                {
+                    var joint = Joints[i];
+
+                    // ElementIdが-1の場合はスキップ（既に警告済み）
+                    if (joint.ElementId < 0)
+                    {
+                        continue;
+                    }
+
+                    // 要素IDの検証
+                    if (!elementIds.Contains(joint.ElementId))
+                    {
+                        errors.Add($"Joint[{i}]: References non-existent Element ID {joint.ElementId}.");
+                    }
+                }
+            }
+
             // エラーがある場合は例外をスロー
             if (errors.Count > 0)
             {
@@ -388,6 +449,7 @@ namespace FEMur.Models
             info.AddValue("Elements", Elements);
             info.AddValue("Supports", Supports);
             info.AddValue("Loads", Loads);
+            info.AddValue("Joints", Joints);
             info.AddValue("Result", Result);
             info.AddValue("IsSolved", IsSolved);
         }
@@ -400,6 +462,7 @@ namespace FEMur.Models
             cloned.Elements = new List<ElementBase>(this.Elements);
             cloned.Supports = new List<Support>(this.Supports);
             cloned.Loads = new List<Load>(this.Loads);
+            cloned.Joints = new List<Joint>(this.Joints ?? new List<Joint>());
             
             // 要素座標系の設定
             ElementCoordinateSystemHelper.SetupElementCoordinateSystems(cloned);
@@ -415,6 +478,7 @@ namespace FEMur.Models
             sb.AppendLine($"Elements: {Elements.Count}");
             sb.AppendLine($"Supports: {Supports.Count}");
             sb.AppendLine($"Loads: {Loads.Count}");
+            sb.AppendLine($"Joints: {Joints?.Count ?? 0}");
             sb.AppendLine($"IsSolved: {IsSolved}");
             return sb.ToString();
         }
@@ -422,10 +486,15 @@ namespace FEMur.Models
         public bool Equals(Model other)
         {
             if (other == null) return false;
+            
+            bool jointsEqual = (Joints == null && other.Joints == null) ||
+                              (Joints != null && other.Joints != null && Joints.SequenceEqual(other.Joints));
+            
             return Nodes.SequenceEqual(other.Nodes) &&
                    Elements.SequenceEqual(other.Elements) &&
                    Supports.SequenceEqual(other.Supports) &&
-                   Loads.SequenceEqual(other.Loads);
+                   Loads.SequenceEqual(other.Loads) &&
+                   jointsEqual;
         }
     }
 }

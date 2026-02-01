@@ -38,7 +38,7 @@ namespace FEMurGH.Comoponents.Models
         private const float SECTION_SPACING = 8f;
 
         // チェックボックスの数と各行の高さから動的に計算
-        private const int CHECKBOX_COUNT = 6; // NodeID, ElementID, Load, Support, LocalAxis, CrossSection
+        private const int CHECKBOX_COUNT = 7; // NodeID, ElementID, Load, Support, LocalAxis, CrossSection, Joint
         private float MENU_CONTENT_HEIGHT => (CHECKBOX_COUNT * LINE_HEIGHT_NORMAL) + MENU_TOP_PADDING ;
 
         // 単位選択エリアの定数
@@ -68,6 +68,7 @@ namespace FEMurGH.Comoponents.Models
         private RectangleF supportCheckBox;
         private RectangleF localAxisCheckBox;
         private RectangleF crossSectionCheckBox;
+        private RectangleF jointCheckBox;
 
         // 単位選択用のフィールド
         private RectangleF _forceUnitDropdownBounds;
@@ -128,6 +129,9 @@ namespace FEMurGH.Comoponents.Models
                 currentY += LINE_HEIGHT_NORMAL;
 
                 crossSectionCheckBox = CreateControlRect(rightPosition, currentY);
+                currentY += LINE_HEIGHT_NORMAL;
+
+                jointCheckBox = CreateControlRect(rightPosition, currentY);
                 currentY += LINE_HEIGHT_NORMAL;
 
                 checkboxGroupArea = new RectangleF(
@@ -258,6 +262,9 @@ namespace FEMurGH.Comoponents.Models
 
                 graphics.DrawString("CrossSection", font, textBrush, leftMargin, crossSectionCheckBox.Top);
                 DrawCheckBox(graphics, crossSectionCheckBox, Cmp.ShowCrossSection);
+
+                graphics.DrawString("Joint", font, textBrush, leftMargin, jointCheckBox.Top);
+                DrawCheckBox(graphics, jointCheckBox, Cmp.ShowJoint);
             }
         }
 
@@ -347,6 +354,9 @@ namespace FEMurGH.Comoponents.Models
 
                     if (HandleCheckBoxClick(crossSectionCheckBox, e.CanvasLocation, () => Cmp.ShowCrossSection, v => Cmp.ShowCrossSection = v))
                         return GH_ObjectResponse.Handled;
+
+                    if (HandleCheckBoxClick(jointCheckBox, e.CanvasLocation, () => Cmp.ShowJoint, v => Cmp.ShowJoint = v))
+                        return GH_ObjectResponse.Handled;
                 }
             }
 
@@ -368,13 +378,13 @@ namespace FEMurGH.Comoponents.Models
                     Cmp.UpdateCaches(Cmp._cachedModel);
                 }
                 
-                // Rhinoビューポートのプレビューを期限切れにして再描画を強制
+                // Rhinoビューポートのプレビューを一旦切りにして再描画する
                 Cmp.ExpirePreview(true);
                 
                 // Rhinoのすべてのビューポートを即座に再描画
                 Rhino.RhinoDoc.ActiveDoc?.Views.Redraw();
                 
-                // Grasshopperキャンバスも再描画
+                // Grasshopperキャンバスを再描画
                 Grasshopper.Instances.ActiveCanvas?.Refresh();
                 
                 return true;
@@ -398,7 +408,7 @@ namespace FEMurGH.Comoponents.Models
                     Cmp.ExpirePreview(true);
                     Rhino.RhinoDoc.ActiveDoc?.Views.Redraw();
                     
-                    // Grasshopperキャンバスも再描画
+                    // Grasshopperキャンバスを再描画
                     Grasshopper.Instances.ActiveCanvas?.Refresh();
                 };
                 menu.Items.Add(item);
@@ -433,7 +443,7 @@ namespace FEMurGH.Comoponents.Models
                     Cmp.ExpirePreview(true);
                     Rhino.RhinoDoc.ActiveDoc?.Views.Redraw();
                     
-                    // Grasshopperキャンバスも再描画
+                    // Grasshopperキャンバスを再描画
                     Grasshopper.Instances.ActiveCanvas?.Refresh();
                 };
                 menu.Items.Add(item);

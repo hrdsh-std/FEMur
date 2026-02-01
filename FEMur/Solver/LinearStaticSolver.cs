@@ -8,6 +8,7 @@ using FEMur.Elements;
 using FEMur.Models;
 using FEMur.Results;
 using FEMur.Loads;
+using FEMur.Joints;
 using MathNet.Numerics.LinearAlgebra;
 
 namespace FEMur.Solver
@@ -70,11 +71,6 @@ namespace FEMur.Solver
         /// 反力を計算
         /// R = K × U - F (拘束自由度のみ)
         /// </summary>
-        /// <param name="model">解析モデル</param>
-        /// <param name="globalK">全体剛性マトリクス（Support springを含む）</param>
-        /// <param name="globalF">全体荷重ベクトル</param>
-        /// <param name="displacements">変位ベクトル</param>
-        /// <returns>反力のリスト</returns>
         protected List<ReactionForce> CalcReactionForces(Model model, Matrix<double> globalK, 
             Vector<double> globalF, Vector<double> displacements)
         {
@@ -91,14 +87,13 @@ namespace FEMur.Solver
             {
                 int nodeIndex = model.Nodes.FindIndex(n => n.Id == support.NodeId);
                 if (nodeIndex < 0)
-                    continue; // 既にチェック済みだが念のため
+                    continue;
 
                 int baseIndex = nodeIndex * dof;
 
                 double fx = 0.0, fy = 0.0, fz = 0.0;
                 double mx = 0.0, my = 0.0, mz = 0.0;
 
-                // 拘束された自由度のみ反力を取得
                 if (support.Conditions[0]) fx = reactions[baseIndex + 0];
                 if (support.Conditions[1]) fy = reactions[baseIndex + 1];
                 if (support.Conditions[2]) fz = reactions[baseIndex + 2];
@@ -106,7 +101,6 @@ namespace FEMur.Solver
                 if (support.Conditions[4]) my = reactions[baseIndex + 4];
                 if (support.Conditions[5]) mz = reactions[baseIndex + 5];
 
-                // 反力が存在する場合のみリストに追加
                 if (Math.Abs(fx) > 1e-12 || Math.Abs(fy) > 1e-12 || Math.Abs(fz) > 1e-12 ||
                     Math.Abs(mx) > 1e-12 || Math.Abs(my) > 1e-12 || Math.Abs(mz) > 1e-12)
                 {
@@ -123,6 +117,12 @@ namespace FEMur.Solver
         protected List<Results.ElementStress> CalcElementStresses(Model model, Vector<double> globalDisplacements)
         {
             var elementStresses = new List<Results.ElementStress>();
+
+            // 要素IDからJointを取得するための辞書を作成
+            var jointByElementId = model.Joints?
+                .Where(j => j != null && j.ElementId >= 0)
+                .ToDictionary(j => j.ElementId, j => j)
+                ?? new Dictionary<int, Joint>();
 
             foreach (var element in model.Elements)
             {
@@ -148,8 +148,15 @@ namespace FEMur.Solver
                     Matrix<double> T = element.CalcTransformationMatrix(model.Nodes);
                     Vector<double> elementDispLocal = T.Transpose() * elementDispGlobal;
 
-                    // 断面力を計算
-                    var stress = beamElement.CalcElementStress(elementDispLocal, model.Nodes);
+                    // 局所剛性マトリクスを取得（Jointがある場合は縮約後のものを使用）
+                    Matrix<double> keLocal = element.CalcLocalStiffness(model.Nodes);
+                    if (jointByElementId.TryGetValue(element.Id, out Joint joint))
+                    {
+                        keLocal = ApplyJointStaticCondensation(keLocal, joint, element);
+                    }
+
+                    // 断面力を計算（縮約後の剛性マトリクスを使用）
+                    var stress = CalcElementStressWithMatrix(beamElement, elementDispLocal, keLocal);
                     elementStresses.Add(stress);
                 }
             }
@@ -168,6 +175,35 @@ namespace FEMur.Solver
             return elementStresses;
         }
 
+        /// <summary>
+        /// 指定された剛性マトリクスを使用して断面力を計算
+        /// </summary>
+        private Results.ElementStress CalcElementStressWithMatrix(BeamElement element, Vector<double> localDisplacements, Matrix<double> keLocal)
+        {
+            // 局所座標系の断面力: f_local = K_local * u_local
+            Vector<double> forces = keLocal * localDisplacements;
+
+            var stress = new Results.ElementStress(element.Id);
+
+            // i端（節点1）の断面力
+            stress.Fx_i = forces[0];  // 軸力
+            stress.Fy_i = forces[1];  // せん断力Y
+            stress.Fz_i = forces[2];  // せん断力Z
+            stress.Mx_i = forces[3];  // ねじりモーメント
+            stress.My_i = forces[4];  // 曲げモーメントY
+            stress.Mz_i = forces[5];  // 曲げモーメントZ
+
+            // j端（節点2）の断面力
+            stress.Fx_j = forces[6];
+            stress.Fy_j = forces[7];
+            stress.Fz_j = forces[8];
+            stress.Mx_j = forces[9];
+            stress.My_j = forces[10];
+            stress.Mz_j = forces[11];
+
+            return stress;
+        }
+
         #region private Methods
 
         protected Matrix<double> AssembleGlobalStiffness(Model model)
@@ -176,6 +212,12 @@ namespace FEMur.Solver
             int totalDof = numNodes * dof;
             Matrix<double> globalK = Matrix<double>.Build.Dense(totalDof, totalDof);
 
+            // 要素IDからJointを取得するための辞書を作成
+            var jointByElementId = model.Joints?
+                .Where(j => j != null && j.ElementId >= 0)
+                .ToDictionary(j => j.ElementId, j => j)
+                ?? new Dictionary<int, Joint>();
+
             foreach (ElementBase element in model.Elements)
             {
                 var nodeIndices = element.NodeIds
@@ -183,6 +225,13 @@ namespace FEMur.Solver
                     .ToArray();
 
                 Matrix<double> keLocal = element.CalcLocalStiffness(model.Nodes);
+
+                // Jointが存在する場合は静的縮約を適用
+                if (jointByElementId.TryGetValue(element.Id, out Joint joint))
+                {
+                    keLocal = ApplyJointStaticCondensation(keLocal, joint, element);
+                }
+
                 Matrix<double> T = element.CalcTransformationMatrix(model.Nodes);
                 Matrix<double> elementK = T * keLocal * T.Transpose();
 
@@ -209,6 +258,165 @@ namespace FEMur.Solver
             return globalK;
         }
 
+        /// <summary>
+        /// 材端ばね（Joint）を考慮した静的縮約を適用
+        /// K_eq = K_rr - K_ri * K_ii^(-1) * K_ir
+        /// </summary>
+        /// <param name="keLocal">元の局所剛性マトリクス (12x12)</param>
+        /// <param name="joint">接合条件</param>
+        /// <param name="element">要素</param>
+        /// <returns>縮約後の剛性マトリクス (12x12)</returns>
+        private Matrix<double> ApplyJointStaticCondensation(Matrix<double> keLocal, Joint joint, ElementBase element)
+        {
+            // 両端とも剛結の場合は縮約不要
+            if (joint.IsStartRigid() && joint.IsEndRigid())
+            {
+                return keLocal;
+            }
+
+            // 内部自由度（ばねで接続される自由度）のインデックスを特定
+            var internalDofs = new List<int>();
+            var retainedDofs = new List<int>();
+
+            // Start端（i端）の自由度チェック: 0-5
+            for (int i = 0; i < Joint.DOFS_PER_END; i++)
+            {
+                if (!joint.IsFixed[i])
+                {
+                    // 固定されていない = ばねまたは自由 → 内部自由度として扱う
+                    internalDofs.Add(i);
+                }
+                else
+                {
+                    retainedDofs.Add(i);
+                }
+            }
+
+            // End端（j端）の自由度チェック: 6-11
+            for (int i = Joint.DOFS_PER_END; i < Joint.TOTAL_DOFS; i++)
+            {
+                if (!joint.IsFixed[i])
+                {
+                    internalDofs.Add(i);
+                }
+                else
+                {
+                    retainedDofs.Add(i);
+                }
+            }
+
+            // 内部自由度がない場合は縮約不要
+            if (internalDofs.Count == 0)
+            {
+                return keLocal;
+            }
+
+            // 拡張剛性マトリクスを構築（材端ばねを追加）
+            // 元の12x12マトリクスに内部自由度分を追加
+            int originalSize = 12;
+            int internalCount = internalDofs.Count;
+            int expandedSize = originalSize + internalCount;
+
+            var kExpanded = Matrix<double>.Build.Dense(expandedSize, expandedSize);
+
+            // 元の剛性マトリクスをコピー
+            for (int i = 0; i < originalSize; i++)
+            {
+                for (int j = 0; j < originalSize; j++)
+                {
+                    int i2 = i;
+                    int j2 = j;
+
+                    if(internalDofs.Contains(i))
+                    {
+                        i2 = originalSize + internalDofs.IndexOf(i);
+                    }
+                    if(internalDofs.Contains(j))
+                    {
+                        j2 = originalSize + internalDofs.IndexOf(j);
+                    }
+
+                    kExpanded[i2, j2] = keLocal[i, j];
+                }
+            }
+
+            // 材端ばねの剛性を追加
+            for (int idx = 0; idx < internalCount; idx++)
+            {
+                int dofIdx = internalDofs[idx];
+                double springStiffness = GetSpringStiffness(joint, dofIdx);
+
+                // ばね剛性が0または負の場合はピン接合として扱う（非常に小さい値を設定）
+                if (springStiffness <= 0)
+                {
+                    springStiffness = 1.0E-5; // 数値安定性のための微小値
+                }
+
+                // 対角成分にばね剛性を加算
+                kExpanded[dofIdx, dofIdx] += springStiffness;
+
+                // 内部自由度の対角成分
+                int internalIdx = originalSize + idx;
+                kExpanded[internalIdx, internalIdx] += springStiffness;
+
+                // 結合項（off-diagonal）
+                kExpanded[dofIdx, internalIdx] = -springStiffness;
+                kExpanded[internalIdx, dofIdx] = -springStiffness;
+            }
+
+            // 静的縮約を実行
+            // K を [K_rr, K_ri; K_ir, K_ii] に分割
+            // retained: 0-11 (元の自由度), internal: 12以降（内部自由度）
+
+
+            var kRR = kExpanded.SubMatrix(0, originalSize, 0, originalSize);
+            var kRI = kExpanded.SubMatrix(0, originalSize, originalSize, internalCount);
+            var kIR = kExpanded.SubMatrix(originalSize, internalCount, 0, originalSize);
+            var kII = kExpanded.SubMatrix(originalSize, internalCount, originalSize, internalCount);
+
+            // K_eq = K_rr - K_ri * K_ii^(-1) * K_ir
+            Matrix<double> kIIinv;
+            try
+            {
+                kIIinv = kII.Inverse();
+            }
+            catch
+            {
+                // 逆行列が計算できない場合は警告を出して元のマトリクスを返す
+                Warnings.Add($"Joint condensation failed for Element {element.Id}: K_ii is singular. Using original stiffness.");
+                return keLocal;
+            }
+
+            var kEq = kRR - kRI * kIIinv * kIR;
+
+            return kEq;
+        }
+
+        /// <summary>
+        /// Jointから指定された自由度のばね剛性を取得
+        /// </summary>
+        private double GetSpringStiffness(Joint joint, int dofIndex)
+        {
+            bool isStartEnd = dofIndex < Joint.DOFS_PER_END;
+            int localIdx = isStartEnd ? dofIndex : dofIndex - Joint.DOFS_PER_END;
+
+            if (localIdx < 3)
+            {
+                // 並進自由度 (DX, DY, DZ)
+                return isStartEnd
+                    ? joint.StartTranslationalStiffness[localIdx]
+                    : joint.EndTranslationalStiffness[localIdx];
+            }
+            else
+            {
+                // 回転自由度 (RX, RY, RZ)
+                int rotIdx = localIdx - 3;
+                return isStartEnd
+                    ? joint.StartRotationalStiffness[rotIdx]
+                    : joint.EndRotationalStiffness[rotIdx];
+            }
+        }
+
         protected Vector<double> AssembleGlobalLoad(Model model)
         {
             int numNodes = model.Nodes.Count;
@@ -225,7 +433,6 @@ namespace FEMur.Solver
                     
                     int globalIndex = nodeIndex * dof;
                     
-                    // PointLoadは常にグローバル座標系
                     globalF[globalIndex + 0] += pointLoad.Force.X;
                     globalF[globalIndex + 1] += pointLoad.Force.Y;
                     globalF[globalIndex + 2] += pointLoad.Force.Z;
@@ -243,46 +450,37 @@ namespace FEMur.Solver
                         .Select(id => model.Nodes.FindIndex(n => n.Id == id))
                         .ToArray();
 
-                    // ElementLoadの等価節点荷重はローカル座標系で計算される
                     Vector<double> feLocal = elementLoad.CalcEquivalentNodalLoadLocal(element, model.Nodes);
                     
                     Vector<double> feGlobal;
                     
                     if (elementLoad.Local)
                     {
-                        // ローカル座標系の場合、変換行列を使用してグローバル座標系に変換
                         Matrix<double> T = element.CalcTransformationMatrix(model.Nodes);
                         feGlobal = T * feLocal;
                     }
                     else
                     {
-                        // グローバル座標系の場合
-                        // 要素の局所座標系が定義されている場合
                         if (element is LineElement lineElement &&
                             lineElement.LocalAxisX != null &&
                             lineElement.LocalAxisY != null &&
                             lineElement.LocalAxisZ != null)
                         {
-                            // グローバル荷重をローカル座標系に変換
-                            // R: グローバル→ローカル変換行列（行に基底ベクトルを配置）
                             var R = Matrix<double>.Build.DenseOfRowArrays(
-                                lineElement.LocalAxisX,  // 行0: ex (局所X軸)
-                                lineElement.LocalAxisY,  // 行1: ey (局所Y軸)
-                                lineElement.LocalAxisZ   // 行2: ez (局所Z軸)
+                                lineElement.LocalAxisX,
+                                lineElement.LocalAxisY,
+                                lineElement.LocalAxisZ
                             );
                             
-                            // グローバル→ローカル変換: v_local = R * v_global
                             var qGlobal = Vector<double>.Build.DenseOfArray(new[] 
                             { 
-                                elementLoad.QLocal.X,  // 本当はQGlobalという名前が適切
+                                elementLoad.QLocal.X,
                                 elementLoad.QLocal.Y, 
                                 elementLoad.QLocal.Z 
                             });
                             
                             var qLocal = R * qGlobal;
-                            
 
-                            // ローカル荷重で等価節点荷重を計算
                             var tempElementLoad = new ElementLoad(
                                 elementLoad.ElementId,
                                 new Vector3(qLocal[0], qLocal[1], qLocal[2]),
@@ -292,13 +490,11 @@ namespace FEMur.Solver
                             
                             feLocal = tempElementLoad.CalcEquivalentNodalLoadLocal(element, model.Nodes);
                             
-                            // ローカル等価節点荷重をグローバルに変換
                             Matrix<double> T = element.CalcTransformationMatrix(model.Nodes);
                             feGlobal = T * feLocal;
                         }
                         else
                         {
-                            // 局所座標系が未定義の場合は警告
                             Warnings.Add($"ElementLoad for ElementId={elementLoad.ElementId} is marked as Global, " +
                                        $"but element local coordinate system is not defined. " +
                                        $"Treating as Local.");
@@ -308,7 +504,6 @@ namespace FEMur.Solver
                         }
                     }
 
-                    // グローバル等価節点荷重を全体荷重ベクトルに加算
                     for (int i = 0; i < element.NodeIds.Count; i++)
                     {
                         int nodeI = nodeIndices[i];

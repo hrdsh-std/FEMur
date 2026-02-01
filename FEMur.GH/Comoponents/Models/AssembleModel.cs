@@ -9,6 +9,7 @@ using FEMur.Elements;
 using FEMur.Supports;
 using FEMur.Loads;
 using FEMur.Models;
+using FEMur.Joints;
 using FEMur.Common.Units;
 using FEMurGH.Comoponents.Results;
 
@@ -28,6 +29,7 @@ namespace FEMurGH.Comoponents.Models
         public bool ShowSupport { get; set; } = false;
         public bool ShowLocalAxis { get; set; } = false;
         public bool ShowCrossSection { get; set; } = false;
+        public bool ShowJoint { get; set; } = false;
         public double LocalAxisScale { get; set; } = 0.3;
 
         // 単位選択
@@ -51,7 +53,7 @@ namespace FEMurGH.Comoponents.Models
 
         public AssembleModel()
           : base("AssembleModel(FEMur)", "AssembleModel",
-              "Assemble FEMur Model from Elements, Supports and Loads (Nodes are auto-generated from Elements)",
+              "Assemble FEMur Model from Elements, Supports, Loads and Joints (Nodes are auto-generated from Elements)",
               "FEMur", "7.Model")
         {
         }
@@ -69,9 +71,11 @@ namespace FEMurGH.Comoponents.Models
             pManager.AddGenericParameter("Elements", "E", "FEMur Elements (List<FEMur.Elements.ElementBase>) - Nodes will be auto-generated from element Points", GH_ParamAccess.list);
             pManager.AddGenericParameter("Supports", "S", "FEMur Supports (List<FEMur.Supports.Support>)", GH_ParamAccess.list);
             pManager.AddGenericParameter("Loads", "L", "FEMur Loads (List<FEMur.Loads.Load>)", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Joints", "J", "FEMur Joints (List<FEMur.Joints.Joint>)", GH_ParamAccess.list);
 
             pManager[1].Optional = true;
             pManager[2].Optional = true;
+            pManager[3].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
@@ -88,6 +92,7 @@ namespace FEMurGH.Comoponents.Models
             var elements = new List<ElementBase>();
             var supports = new List<Support>();
             var loads = new List<Load>();
+            var joints = new List<Joint>();
 
             if (!DA.GetDataList(0, elements))
             {
@@ -107,12 +112,15 @@ namespace FEMurGH.Comoponents.Models
                 return;
             }
 
+            // Joints はオプション
+            DA.GetDataList(3, joints);
+
             try
             {
                 // Grasshopperのオブジェクト再利用対策：キャッシュされたIDをリセット
                 ResetCachedIds(elements, supports, loads);
                 
-                var model = new Model(new List<Node>(), elements, supports, loads);
+                var model = new Model(new List<Node>(), elements, supports, loads, joints);
                 
                 // 重要: 新しく組み立てたモデルは未解析状態であることを明示
                 model.IsSolved = false;
@@ -190,6 +198,19 @@ namespace FEMurGH.Comoponents.Models
             {
                 _crossSectionBreps.Clear();
             }
+
+            if (ShowJoint)
+            {
+                GenerateJointVisuals(model);
+            }
+        }
+
+        /// <summary>
+        /// Joint表示用のビジュアルを生成
+        /// </summary>
+        private void GenerateJointVisuals(Model model)
+        {
+            throw new NotImplementedException("Joint visualization is not implemented yet.");
         }
 
         /// <summary>
@@ -243,6 +264,7 @@ namespace FEMurGH.Comoponents.Models
             writer.SetBoolean("ShowSupport", ShowSupport);
             writer.SetBoolean("ShowLocalAxis", ShowLocalAxis);
             writer.SetBoolean("ShowCrossSection", ShowCrossSection);
+            writer.SetBoolean("ShowJoint", ShowJoint);
             writer.SetDouble("LocalAxisScale", LocalAxisScale);
             writer.SetBoolean("IsDisplayTabExpanded", IsDisplayTabExpanded);
             writer.SetInt32("SelectedForceUnit", (int)SelectedForceUnit);
@@ -264,6 +286,8 @@ namespace FEMurGH.Comoponents.Models
                 ShowLocalAxis = reader.GetBoolean("ShowLocalAxis");
             if (reader.ItemExists("ShowCrossSection"))
                 ShowCrossSection = reader.GetBoolean("ShowCrossSection");
+            if (reader.ItemExists("ShowJoint"))
+                ShowJoint = reader.GetBoolean("ShowJoint");
             if (reader.ItemExists("LocalAxisScale"))
                 LocalAxisScale = reader.GetDouble("LocalAxisScale");
             if (reader.ItemExists("IsDisplayTabExpanded"))

@@ -22,6 +22,11 @@ namespace FEMur.CrossSections
         /// デフォルトコンストラクタ
         /// </summary>
         public CrossSection_Box() { }
+        //nameなしコンストラクタ
+        public CrossSection_Box(double b, double h, double t = 0, double r = -1)
+            : this("Box", b, h, t, r)
+        {
+        }
 
         /// <summary>
         /// パラメータ指定コンストラクタ
